@@ -4,7 +4,18 @@ Author: Bjorn Stevens (bjorn.stevens@mpimet.mpg.de)
 """
 #
 import numpy as np
+import aes_thermo.constants 
 from scipy import interpolate, optimize
+
+
+es_default = 'analytic-liq'
+c,h,kB,N_avo        = aes_thermo.constants.fundamental()
+TvT,PvT,lvT,lfT,lsT = aes_thermo.constants.triple()
+lv0,lf0,P0,T0       = aes_thermo.constants.standard()
+Rd,Rv,cpd,cpv,cl,ci = aes_thermo.constants.rankine()
+PvC,TvC             = aes_thermo.constants.critical()
+eps1                =  aes_thermo.constants.eps1
+
 
 def Planck(T,nu):
     """returns the Planck source function for the given temperature (K) and frequency (Hz)
@@ -87,7 +98,6 @@ def pp2sm(pv,p):
     >>> pp2sm(es(273.16),60000.)
     0.00636529
     """
-
     x   = eps1*pv/(p-pv)
     return x/(1+x)
 

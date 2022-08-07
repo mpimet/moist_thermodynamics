@@ -73,8 +73,6 @@ Rd  = (Rstar/md)*(x_ar+x_o2+x_n2+x_co2) * 1000.  #J/kg/K
 cpd = (   1./md)*(x_ar*cp_ar + x_o2*cp_o2 + x_n2*cp_n2 + x_co2*cp_co2) *1000.  #J/kg/K
 sd00= (   1./md)*(x_ar*s0_ar + x_o2*s0_o2 + x_n2*s0_n2 + x_co2*s0_co2) * 1000.  + cpd * np.log(T0/298.15)  # Dry air entropy at P0, T0
 
-es_default = 'analytic-liq'
-
 cpv     = 1865.01   # IAPWS97 at 273.15 , for this we could use the Chase values, but they are closer to 1861
 cl      = 4179.57   # IAPWS97 at 305 and P=0.1 MPa (chosen to give a good fit for es over ice)
 ci      = 1905.43   # IAPWS97 at 247.065 and P=0.1 MPa (chosen to give a good fit for es over ice)
@@ -103,7 +101,7 @@ lvT     = lv0 + (cpv-cl)*(TvT-T0)
 lfT     = lf0 + (cpv-ci)*(TvT-T0)
 lsT     = lvT + lfT
 
-def physical_constants():
+def fundamental():
     """ Returns standard values for the speed of light, the planck constant, the boltzmann constant, and
     Avogadro's number
     """
@@ -113,3 +111,23 @@ def rankine():
     """ Returns thermodynamic constants for a Rankine (water/dry air fluid)
     """
     return Rd,Rv,cpd,cpv,cl,ci
+
+def standard():
+    """ Returns values for standard (1000 hPa, 273.15) thermodynamic quantities
+    """
+    return lv0,lf0,P0,T0
+
+def triple():
+    """ Returns values for thermodynamic quantities at triple point
+    """
+    return TvT,PvT,lvT,lfT,lsT
+
+def critical():
+    """ Returns values for thermodynamic quantities at critical point
+    """
+    return PvC,TvC
+
+def earth():
+    """ Returns values for Earth properties
+    """
+    return mass_earth, area_earth, diam_earth, grav_earth, Tsfc, Psfc, mass_atm, md
