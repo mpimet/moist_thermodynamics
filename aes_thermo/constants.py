@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""
+Author: Bjorn Stevens (bjorn.stevens@mpimet.mpg.de)
+"""
+#
+import numpy as np
+
+c       = 299792458
+kB      = 1.380649e-23
+N_avo   = 6.02214076e+23
+h       = 6.62607015e-34
+G       = 6.67430e-11
+
+mass_earth = 5.9722e+24
+area_earth = 510065623e6
+diam_earth = np.sqrt(area_earth/np.pi)
+grav_earth =  4*np.pi*G*mass_earth/area_earth  # Gives value of 9.8203 as compared to 9.80665 which is often taken as the standard value
+
+Rstar   = kB*N_avo
+sigma   = 2*(np.pi**5) * kB**4 / (15 * h**3 * c**2)
+
+Tsfc       = 288.
+Psfc       = 98443      # Pa
+mass_atm   = (Psfc / grav_earth) # kg/m^2
+
+P0      = 100000.  # Standard Pressure [Pa]
+T0      = 273.15   # Standard Temperature [K]
+#
+# Based on Park et al (2004) Meteorlogia, O2 levels are declining as CO2 levels rise, but at a tiny arte.
+#
+x_ar  = 9.332e-3
+x_o2  = 0.20944
+x_n2  = 0.78083
+x_co2 = 0.415e-3
+
+x_ch4 = 772.e-9
+x_n2o = 334.e-9
+x_o3  = 200.e-9
+
+#
+# Based on Chase (1998) J Phys Chem Ref Data
+#
+m_ar  = 39.948
+m_o2  = 15.9994 * 2
+m_n2  = 14.0067 * 2
+m_co2 = 44.011
+m_h2o = 18.01528
+
+m_ch4 = m_co2 + 4*m_h2o - 3.*m_o2
+m_n2o = m_n2  + m_o2/2
+m_o3  = m_o2 * 3/2
+
+md    = x_ar*m_ar + x_o2*m_o2 + x_n2*m_n2 + x_co2*m_co2 + x_ch4*m_ch4 + x_n2o*m_n2o + x_o3*m_o3 # molar mass of dry air
+
+cp_ar  = 20.786  # 298.15K
+cp_o2  = 29.376  # 298.15K or 29.126 @ 200K
+cp_n2  = 29.124  # 298.15K or 29.107 @ 200K
+cp_co2 = 37.129  # 298.15K or 32.359 @ 200K
+cp_h2o = 33.349 + (33.590 - 33.349)/98.15 * (T0-200) # Interpolated to T0 from Chase values (but not used)
+
+s0_ar  = 154.845  # 298.15K
+s0_o2  = 205.147  # 298.15K
+s0_n2  = 191.609  # 298.15K
+s0_co2 = 213.795  # 298.15K
+s0_h2o = 188.854  # 298.15
+
+q_ar  = x_ar *m_ar /md
+q_o2  = x_o2 *m_o2 /md
+q_n2  = x_n2 *m_n2 /md
+q_co2 = x_co2*m_co2/md
+
+Rd  = (Rstar/md)*(x_ar+x_o2+x_n2+x_co2) * 1000.  #J/kg/K
+cpd = (   1./md)*(x_ar*cp_ar + x_o2*cp_o2 + x_n2*cp_n2 + x_co2*cp_co2) *1000.  #J/kg/K
+sd00= (   1./md)*(x_ar*s0_ar + x_o2*s0_o2 + x_n2*s0_n2 + x_co2*s0_co2) * 1000.  + cpd * np.log(T0/298.15)  # Dry air entropy at P0, T0
+
+es_default = 'analytic-liq'
+
+cpv     = 1865.01   # IAPWS97 at 273.15 , for this we could use the Chase values, but they are closer to 1861
+cl      = 4179.57   # IAPWS97 at 305 and P=0.1 MPa (chosen to give a good fit for es over ice)
+ci      = 1905.43   # IAPWS97 at 247.065 and P=0.1 MPa (chosen to give a good fit for es over ice)
+#
+# cl and ci, especially ci, varies considerably with temperature.  Consider that
+# cl = 4273 J/kg/K at 263 K decreases sharply to 4220 J/kg/K by 273 K and ever more slowly to 4179 J/kg/K at 313 K with most variation at lower temperatures
+# ci = 1450 J/kg/K at 183 K and increases progressively to a value of 2132 J/kg/K at 278K
+#
+# At standard temperature and pressure they hav the values
+#    cl      = 4219.32   # ''
+#    ci      = 2096.70   # ''
+
+lv0     = 2500.93e3 # IAPWS97 at 273.15
+lf0     =  333.42e3 # ''
+Rv      = (Rstar/m_h2o) *1000.  #J/kg/K
+sv00    = (s0_h2o/m_h2o)*1000.  + cpv * np.log(T0/298.15)
+
+eps1     = Rd/Rv
+eps2     = Rv/Rd -1.
+
+PvC     = 22.064e6 # Critical pressure [Pa] of water vapor
+TvC     = 647.096  # Critical temperature [K] of water vapor
+TvT     = 273.16   # Triple point temperature [K] of water
+PvT     = 611.655
+lvT     = lv0 + (cpv-cl)*(TvT-T0)
+lfT     = lf0 + (cpv-ci)*(TvT-T0)
+lsT     = lvT + lfT
+
+def physical_constants():
+    """ Returns standard values for the speed of light, the planck constant, the boltzmann constant, and
+    Avogadro's number
+    """
+    return c,h,kB,N_avo
+
+def rankine():
+    """ Returns thermodynamic constants for a Rankine (water/dry air fluid)
+    """
+    return Rd,Rv,cpd,cpv,cl,ci
