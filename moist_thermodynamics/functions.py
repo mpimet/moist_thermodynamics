@@ -3,7 +3,7 @@
 Author: Bjorn Stevens (bjorn.stevens@mpimet.mpg.de)
 """
 #
-import constants
+from . import constants
 import numpy as np
 from scipy import interpolate, optimize
 
