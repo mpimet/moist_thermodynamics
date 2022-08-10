@@ -126,21 +126,9 @@ def sublimation_enthalpy(TK,delta_ci=constants.delta_ci):
     ls0 = constants.sublimation_enthalpy_stp  
     return ls0 + delta_ci*(TK-T0)
 
-def partial_pressure_to_specific_humidity(pp,p):
-    """ Calculates specific mass from the partial and total pressure
-    assuming both have same units and no condensate is present.  Returns value
-    in units of kg/kg.
-    >>> partial_pressure_to_specific_humidity(es(300.),60000.)
-    0.037496189210922945
-    """   
-    eps1 = constants.rd_over_rv
-    x    = eps1*pp/(p-pp)
-    return x/(1+x)
-
 def partial_pressure_to_mixing_ratio(pp,p):
-    """ Calculates mixing ratio from the partial and total pressure
-    assuming both have same unitsa nd no condensate is present. Returns value
-    in units of kg/kg.
+    """ Calculates mixing ratio from the partial and total pressure assuming
+    no condensate is present. Returns value in units of kg/kg.
     >>> partial_pressure_to_mixing_ratio(es(300.),60000.)
     0.0389569254590098
     """
@@ -155,6 +143,16 @@ def mixing_ratio_to_partial_pressure(r,p):
     """
     eps1 = constants.rd_over_rv
     return r*p/(eps1+r)
+
+def partial_pressure_to_specific_humidity(pp,p):
+    """ Calculates specific mass from the partial and total pressure
+    assuming both have same units and no condensate is present.  Returns value
+    in units of kg/kg.
+    >>> partial_pressure_to_specific_humidity(es(300.),60000.)
+    0.037496189210922945
+    """   
+    r    = partial_pressure_to_mixing_ratio(pp,p)
+    return r/(1+r)
 
 def theta_e_bolton(TK,PPa,qt,es=es_liq):
     """ Calculates pseudo equivalent potential temperature. following Bolton
@@ -177,9 +175,9 @@ def theta_e(TK,PPa,qt,es=es_liq):
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
-    cl  = constants.isobaric_water_vapor_specific_heat
-    lv   = vaporization_enthalpy
+    cl   = constants.liquid_water_specific_heat
     p2r  = partial_pressure_to_mixing_ratio
+    lv   = vaporization_enthalpy
 
     ps = es(TK)
     qs = p2r(ps,PPa) * (1.0 - qt)
@@ -194,44 +192,20 @@ def theta_e(TK,PPa,qt,es=es_liq):
     theta_e = TK*(P0/PPa)**(Re/cpe)*omega_e*np.exp(qv*lv(TK)/(cpe*TK))
     return(theta_e)
 
-def theta_es(TK,PPa,es=es_liq):
-    """ Calculates equivalent potential temperature corresponding to Eq. 2.42 in the Clouds
-    and Climate book but assuming that the water amount is just saturated
-    """
-    
-    P0   = constants.standard_pressure
-    Rd   = constants.dry_air_gas_constant
-    Rv   = constants.water_vapor_gas_constant
-    cpd  = constants.isobaric_dry_air_specific_heat
-    cl   = constants.liquid_water_specific_heat
-    p2q  = partial_pressure_to_specific_humidity
-
-    ps = es(TK)
-    qs = p2q(ps,PPa)
-
-    Re = (1.0-qs)*Rd
-    R  = Re + qs*Rv
-    cpe= cpd + qs*(cl-cpd)
-    omega_e  = (R/Re)**(Re/cpe)
-    theta_es = TK*(P0/PPa)**(Re/cpe)*omega_e*np.exp(qs*lv(TK)/(cpe*TK))
-    return(theta_es)
-
 def theta_l(TK,PPa,qt,es=es_liq):
     """ Calculates liquid-water potential temperature.  Following Stevens and Siebesma
     Eq. 2.44-2.45 in the Clouds and Climate book
     """
-
     P0   = constants.standard_pressure
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
     cpv  = constants.isobaric_water_vapor_specific_heat
-    eps1 = constants.rd_over_rv
-
+    p2r  = partial_pressure_to_mixing_ratio
     lv   = vaporization_enthalpy
 
     ps = es(TK)
-    qs = (ps/(PPa-ps)) * eps1 * (1. - qt)
+    qs = p2r(ps,PPa) * (1. - qt)
     qv = np.minimum(qt,qs)
     ql = qt-qv
 
@@ -257,7 +231,6 @@ def theta_s(TK,PPa,qt,es=es_liq):
     cpv  = constants.isobaric_water_vapor_specific_heat
     eps1 = constants.rd_over_rv
     eps2 = constants.rv_over_rd_minus_one
-    
     p2r  = partial_pressure_to_mixing_ratio
     lv   = vaporization_enthalpy
 
@@ -285,6 +258,28 @@ def theta_s(TK,PPa,qt,es=es_liq):
     theta_s = (TK*(P0/PPa)**(kappa)) * np.exp(-ql*lv(TK)/(cpd*TK)) * np.exp(qt*Lmbd) * x1 * x2
     return(theta_s)
 
+def theta_es(TK,PPa,es=es_liq):
+    """ Calculates equivalent potential temperature corresponding to Eq. 2.42 in the Clouds
+    and Climate book but assuming that the water amount is just saturated
+    """
+    P0   = constants.standard_pressure
+    Rd   = constants.dry_air_gas_constant
+    Rv   = constants.water_vapor_gas_constant
+    cpd  = constants.isobaric_dry_air_specific_heat
+    cl   = constants.liquid_water_specific_heat
+    p2q  = partial_pressure_to_specific_humidity
+    lv   = vaporization_enthalpy
+
+    ps = es(TK)
+    qs = p2q(ps,PPa)
+
+    Re = (1.0-qs)*Rd
+    R  = Re + qs*Rv
+    cpe= cpd + qs*(cl-cpd)
+    omega_e  = (R/Re)**(Re/cpe)
+    theta_es = TK*(P0/PPa)**(Re/cpe)*omega_e*np.exp(qs*lv(TK)/(cpe*TK))
+    return(theta_es)
+
 def theta_rho(TK,PPa,qt,es=es_liq):
     """ Calculates theta_rho as theta_l * (1+Rd/Rv qv - qt)
     """
@@ -305,9 +300,9 @@ def T_from_Te(Te,P,qt,es=es_liq):
 	>>> T_from_Te(350.,1000.,17)
 	304.4761977
     """
-    def zero(T,Te,P,qt):
+    def zero(T,Te,P,qt,es=es):
         return  np.abs(Te-theta_e(T,P,qt,es=es))
-    return optimize.fsolve(zero,   280., args=(Te,P,qt), xtol=1.e-10)
+    return optimize.fsolve(zero,   280., args=(Te,P,qt,es), xtol=1.e-10)
 
 def T_from_Tl(Tl,P,qt,es=es_liq):
     """ Given theta_e solves implicitly for the temperature at some other pressure,
@@ -315,9 +310,9 @@ def T_from_Tl(Tl,P,qt,es=es_liq):
 	>>> T_from_Tl(282.75436951,90000,20.e-3)
 	290.00
     """
-    def zero(T,Tl,P,qt):
+    def zero(T,Tl,P,qt,es=es):
         return  np.abs(Tl-theta_l(T,P,qt,es=es))    
-    return optimize.fsolve(zero,   280., args=(Tl,P,qt), xtol=1.e-10)
+    return optimize.fsolve(zero,   280., args=(Tl,P,qt,es), xtol=1.e-10)
 
 def T_from_Ts(Ts,P,qt,es=es_liq):
     """ Given theta_e solves implicitly for the temperature at some other pressure,
@@ -325,9 +320,9 @@ def T_from_Ts(Ts,P,qt,es=es_liq):
 	>>> T_from_Tl(282.75436951,90000,20.e-3)
 	290.00
     """
-    def zero(T,Ts,P,qt):
+    def zero(T,Ts,P,qt,es=es):
         return  np.abs(Ts-theta_s(T,P,qt,es=es))  
-    return optimize.fsolve(zero,   280., args=(Ts,P,qt), xtol=1.e-10)
+    return optimize.fsolve(zero,   280., args=(Ts,P,qt,es), xtol=1.e-10)
 
 def P_from_Te(Te,T,qt,es=es_liq):
     """ Given Te solves implicitly for the pressure at some temperature and qt
@@ -335,9 +330,9 @@ def P_from_Te(Te,T,qt,es=es_liq):
 	>>> P_from_Te(350.,305.,17)
 	100464.71590478
     """
-    def zero(P,Te,T,qt):
+    def zero(P,Te,T,qt,es=es_liq):
         return np.abs(Te-theta_e(T,P,qt,es=es))
-    return optimize.fsolve(zero, 90000., args=(Te,T,qt), xtol=1.e-10)
+    return optimize.fsolve(zero, 90000., args=(Te,T,qt,es), xtol=1.e-10)
 
 def P_from_Tl(Tl,T,qt,es=es_liq):
     """ Given Tl solves implicitly for the pressure at some temperature and qt
@@ -345,40 +340,31 @@ def P_from_Tl(Tl,T,qt,es=es_liq):
 	>>> T_from_Tl(282.75436951,290,20.e-3)
 	90000
     """
-    def zero(P,Tl,T,qt):
+    def zero(P,Tl,T,qt,es=es):
         return np.abs(Tl-theta_l(T,P,qt,es=es))
-    return optimize.fsolve(zero, 90000., args=(Tl,T,qt), xtol=1.e-10)
+    return optimize.fsolve(zero, 90000., args=(Tl,T,qt,es), xtol=1.e-10)
 
 def plcl(TK,PPa,qt,es=es_liq):
-    """ Returns the pressure [Pa] of the LCL.  The routine gives as a default the
-    LCL using the Bolton formula.  If iterate is true uses a nested optimization to
-    estimate at what pressure, Px and temperature, Tx, qt = qs(Tx,Px), subject to
-    theta_e(Tx,Px,qt) = theta_e(T,P,qt).  This works for saturated air.
-	>>> Plcl(300.,1020.,17)
-	96007.495
+    """ Iteratively solve for the pressure [Pa] of the LCL, allows for saturate air.
+	>>> plcl(300.,102000.,17e-3)
+	95971.6975098
     """
-    eps1 = constants.rd_over_rv
     p2r  = partial_pressure_to_mixing_ratio
 
-    def delta_qs(P,Te,qt,es=es_liq):
-        TK = T_from_Te(Te,P,qt)
-        ps = es(TK)
-        qs = p2r(ps,PPa) * (1. - qt)
+    def zero(P,Tl,qt,es=es_liq):
+        TK = T_from_Tl(Tl,P,qt)
+        qs = p2r(es(TK),P) * (1. - qt)
         return np.abs(qs/qt-1.)
 
-    Te   = theta_e(TK,PPa,qt,es)
-    zero = delta_qs
-    return optimize.fsolve(zero, 80000., args=(Te,qt), xtol=1.e-10)
+    Tl   = theta_l(TK,PPa,qt)
+    return optimize.fsolve(zero, 80000., args=(Tl,qt), xtol=1.e-10)
 
-def plcl_bolton(TK,PPa,qt,es=es_liq,iterate=False):
-    """ Returns the pressure [Pa] of the LCL.  The routine gives as a default the
-    LCL using the Bolton formula.  If iterate is true uses a nested optimization to
-    estimate at what pressure, Px and temperature, Tx, qt = qs(Tx,Px), subject to
-    theta_e(Tx,Px,qt) = theta_e(T,P,qt).  This works for saturated air.
-	>>> Plcl(300.,1020.,17)
-	96007.495
+def plcl_bolton(TK,PPa,qt):
+    """ Returns the pressure [Pa] of the LCL using the Bolton formula. Usually accurate to
+    within about 10 Pa, or about 1 m
+	>>> plcl_bolton(300.,102000.,17e-3)
+	95980.41895404423.495
     """
-
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
