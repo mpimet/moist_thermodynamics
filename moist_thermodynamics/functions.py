@@ -35,8 +35,8 @@ def es_liq(T):
 def es_ice(T):
     """ Returns the saturation vapor pressure of water over ice following Wagner et al., (2011) 
     fits for saturation over ice, these also define the IAPWS standard for ice.
-    >>> mt.es_ice(np.asarray([273.16,260.]))
-    [611.65706974, 222.66896149]
+    >>> es_ice(np.asarray([273.16,260.]))
+    array([611.655     , 195.80103377])
     """
     TvT = constants.temperature_water_vapor_triple_point
     PvT = constants.pressure_water_vapor_triple_point
@@ -54,10 +54,10 @@ def es_ice(T):
 def es_mxd(T):
     """ Saturation vapor pressure of water over liquid (T>Tmelt) or ice (T>Tmel) following the
     Wagner and Pruss (2002) and Wagner et al (2011) formuations for each of these.
-    >>> mt.es_mxd(np.asarray([305.,260.]))
-    [4719.32683147,  222.66896149]
+    >>> es_mxd(np.asarray([305.,260.]))
+    array([4719.32683147,  195.80103377])
     """
-    return np.maximum(es_liq(T),es_ice(T))
+    return np.minimum(es_liq(T),es_ice(T))
 
 def es_liq_analytic(T, delta_cl=constants.delta_cl):
     """ Returns an analytic approximation to the saturation vapor pressure over liquid
@@ -103,7 +103,7 @@ def es_mxd_analytic(T, delta_cl=constants.delta_cl, delta_ci=constants.delta_ci)
     >>> es_ice_analytic(np.asarray([273.16,260.]))
     array([611.655     , 195.99959431])
     """
-    return np.maximum(es_liq_analytic(T,delta_cl),es_ice_analytic(T,delta_ci))
+    return np.minimum(es_liq_analytic(T,delta_cl),es_ice_analytic(T,delta_ci))
 
 def vaporization_enthalpy(TK,delta_cl=constants.delta_cl):
     """ Returns the enthlapy [J/g] of vaporization (default) of water vapor or
@@ -296,8 +296,8 @@ def theta_rho(TK,PPa,qt,es=es_liq):
 def T_from_Te(Te,P,qt,es=es_liq):
     """ Given theta_e solves implicitly for the temperature at some other pressure,
     so that theta_e(T,P,qt) = Te
-	>>> T_from_Te(350.,1000.,17)
-	304.4761977
+	>>> T_from_Te(350.,100000.,17.e-3)
+	array([304.49321301])
     """
     def zero(T,Te,P,qt,es=es):
         return  np.abs(Te-theta_e(T,P,qt,es=es))
@@ -326,8 +326,8 @@ def T_from_Ts(Ts,P,qt,es=es_liq):
 def P_from_Te(Te,T,qt,es=es_liq):
     """ Given Te solves implicitly for the pressure at some temperature and qt
     so that theta_e(T,P,qt) = Te
-	>>> P_from_Te(350.,305.,17)
-	100464.71590478
+	>>> P_from_Te(350.,305.,17e-3)
+	array([100586.3357635])
     """
     def zero(P,Te,T,qt,es=es_liq):
         return np.abs(Te-theta_e(T,P,qt,es=es))
@@ -346,7 +346,7 @@ def P_from_Tl(Tl,T,qt,es=es_liq):
 def plcl(TK,PPa,qt,es=es_liq):
     """ Iteratively solve for the pressure [Pa] of the LCL, allows for saturate air.
 	>>> plcl(300.,102000.,17e-3)
-	array([95971.6975098])
+	array([95971.69750248])
     """
     p2r  = partial_pressure_to_mixing_ratio
 
@@ -356,7 +356,7 @@ def plcl(TK,PPa,qt,es=es_liq):
         return np.abs(qs/qt-1.)
 
     Tl   = theta_l(TK,PPa,qt)
-    return optimize.fsolve(zero, 80000., args=(Tl,qt), xtol=1.e-10)
+    return optimize.fsolve(zero, 80000., args=(Tl,qt), xtol=1.e-5)
 
 def plcl_bolton(TK,PPa,qt):
     """ Returns the pressure [Pa] of the LCL using the Bolton formula. Usually accurate to
@@ -380,8 +380,8 @@ def zlcl(Plcl,T,P,qt,z):
     """ Returns the height of the LCL assuming temperature changes following a
     dry adiabat with vertical displacements from the height where the ambient
     temperature is measured.
-	>>> Zlcl(300.,1020.,17)
-	96007.495
+	>>> zlcl(95000.,300.,90000.,17.e-3,500.)
+	16.621174077862747
     """
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
