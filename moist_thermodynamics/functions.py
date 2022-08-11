@@ -387,8 +387,8 @@ def zlcl(Plcl,T,P,qt,z):
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
     cpv  = constants.isobaric_water_vapor_specific_heat
-    g    = constants.earth_gravity
+    g    = constants.gravity_earth
 
     cp = cpd + qt*(cpv-cpd)
     R  = Rd  + qt*(Rv-Rd)
-    return T*(1. - (Plcl/P)**(R/cp)) * cp/earth_gravity + z
+    return T*(1. - (Plcl/P)**(R/cp)) * cp / g + z
