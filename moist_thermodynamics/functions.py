@@ -21,8 +21,8 @@ def es_liq(T):
     """ Returns the saturation vapor pressure of water over liquid following Wagner and Pruss (2002)
     fits for saturation over planar liquid. These formulations were found to be the most accurate as
     compared to the IAPWS standard for warm temperatures
-    >>> mt.es_liq(np.asarray([273.16,305.]))
-    [611.65706974, 4719.32683147]
+    >>> es_liq(np.asarray([273.16,305.]))
+    array([ 611.65706974, 4719.32683147])
     """
     TvC = constants.temperature_water_vapor_critical_point
     PvC = constants.pressure_water_vapor_critical_point
@@ -65,8 +65,8 @@ def es_liq_analytic(T, delta_cl=constants.delta_cl):
     that require consisntency with assumption of cp's being constant.  The analytic
     expressions become identical to Romps (2017) in the case when the differential specific
     heats are adjusted to his suggested values.
-    >>> es(np.asarray([273.16,305.]))
-    [611.655, 4711.13161169]
+    >>> es_liq_analytic(np.asarray([273.16,305.]))
+    array([ 611.655     , 4711.13161169])
     """
     TvT = constants.temperature_water_vapor_triple_point
     PvT = constants.pressure_water_vapor_triple_point
@@ -85,7 +85,7 @@ def es_ice_analytic(T, delta_ci=constants.delta_ci):
     expressions become identical to Romps (2017) in the case when the differential specific
     heats are adjusted to his suggested values.
     >>> es_ice_analytic(np.asarray([273.16,260.]))
-    [611.655, 195.99959431]
+    array([611.655     , 195.99959431])
     """
     TvT = constants.temperature_water_vapor_triple_point
     PvT = constants.pressure_water_vapor_triple_point
@@ -101,16 +101,15 @@ def es_mxd_analytic(T, delta_cl=constants.delta_cl, delta_ci=constants.delta_ci)
     """ Saturation vapor pressure of water over liquid (T>Tmelt) or ice (T>Tmel) following the
     analytic formulations (constant cp) for each of these.
     >>> es_ice_analytic(np.asarray([273.16,260.]))
-    [4711.13161169, 195.99959431]
-
+    array([611.655     , 195.99959431])
     """
     return np.maximum(es_liq_analytic(T,delta_cl),es_ice_analytic(T,delta_ci))
 
 def vaporization_enthalpy(TK,delta_cl=constants.delta_cl):
     """ Returns the enthlapy [J/g] of vaporization (default) of water vapor or
     (if fusion=True) the fusion anthalpy.  Input temperature can be in degC or Kelvin
-    >>> vaporization_enthalpy(np.asarray([305.,273.15])
-    [2500930., 2427211.264]
+    >>> vaporization_enthalpy(np.asarray([305.,273.15]))
+    array([2427211.264, 2500930.   ])
     """
     T0  = constants.standard_temperature
     lv0 = constants.vaporization_enthalpy_stp
@@ -120,7 +119,7 @@ def sublimation_enthalpy(TK,delta_ci=constants.delta_ci):
     """ Returns the enthlapy [J/g] of vaporization (default) of water vapor or
     (if fusion=True) the fusion anthalpy.  Input temperature can be in degC or Kelvin
     >>> sublimation_enthalpy(273.15)
-    [2834350., 2834881.523]
+    2834350.0
     """
     T0  = constants.standard_temperature
     ls0 = constants.sublimation_enthalpy_stp  
@@ -129,7 +128,7 @@ def sublimation_enthalpy(TK,delta_ci=constants.delta_ci):
 def partial_pressure_to_mixing_ratio(pp,p):
     """ Calculates mixing ratio from the partial and total pressure assuming
     no condensate is present. Returns value in units of kg/kg.
-    >>> partial_pressure_to_mixing_ratio(es(300.),60000.)
+    >>> partial_pressure_to_mixing_ratio(es_liq(300.),60000.)
     0.0389569254590098
     """
     eps1 = constants.rd_over_rv
@@ -148,7 +147,7 @@ def partial_pressure_to_specific_humidity(pp,p):
     """ Calculates specific mass from the partial and total pressure
     assuming both have same units and no condensate is present.  Returns value
     in units of kg/kg.
-    >>> partial_pressure_to_specific_humidity(es(300.),60000.)
+    >>> partial_pressure_to_specific_humidity(es_liq(300.),60000.)
     0.037496189210922945
     """   
     r    = partial_pressure_to_mixing_ratio(pp,p)
@@ -307,8 +306,8 @@ def T_from_Te(Te,P,qt,es=es_liq):
 def T_from_Tl(Tl,P,qt,es=es_liq):
     """ Given theta_e solves implicitly for the temperature at some other pressure,
     so that theta_e(T,P,qt) = Te
-	>>> T_from_Tl(282.75436951,90000,20.e-3)
-	290.00
+	>>> T_from_Tl(282., 90000, 20.e-3)
+	array([289.73684039])
     """
     def zero(T,Tl,P,qt,es=es):
         return  np.abs(Tl-theta_l(T,P,qt,es=es))    
@@ -318,7 +317,7 @@ def T_from_Ts(Ts,P,qt,es=es_liq):
     """ Given theta_e solves implicitly for the temperature at some other pressure,
     so that theta_e(T,P,qt) = Te
 	>>> T_from_Tl(282.75436951,90000,20.e-3)
-	290.00
+	array([289.98864293])
     """
     def zero(T,Ts,P,qt,es=es):
         return  np.abs(Ts-theta_s(T,P,qt,es=es))  
@@ -337,8 +336,8 @@ def P_from_Te(Te,T,qt,es=es_liq):
 def P_from_Tl(Tl,T,qt,es=es_liq):
     """ Given Tl solves implicitly for the pressure at some temperature and qt
     so that theta_l(T,P,qt) = Tl
-	>>> T_from_Tl(282.75436951,290,20.e-3)
-	90000
+	>>> P_from_Tl(282.75436951,290,20.e-3)
+	array([90027.65146427])
     """
     def zero(P,Tl,T,qt,es=es):
         return np.abs(Tl-theta_l(T,P,qt,es=es))
@@ -347,7 +346,7 @@ def P_from_Tl(Tl,T,qt,es=es_liq):
 def plcl(TK,PPa,qt,es=es_liq):
     """ Iteratively solve for the pressure [Pa] of the LCL, allows for saturate air.
 	>>> plcl(300.,102000.,17e-3)
-	95971.6975098
+	array([95971.6975098])
     """
     p2r  = partial_pressure_to_mixing_ratio
 
@@ -363,7 +362,7 @@ def plcl_bolton(TK,PPa,qt):
     """ Returns the pressure [Pa] of the LCL using the Bolton formula. Usually accurate to
     within about 10 Pa, or about 1 m
 	>>> plcl_bolton(300.,102000.,17e-3)
-	95980.41895404423.495
+	95980.41895404423
     """
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
@@ -388,8 +387,8 @@ def zlcl(Plcl,T,P,qt,z):
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
     cpv  = constants.isobaric_water_vapor_specific_heat
-    g    = constants.earth_gravity
+    g    = constants.gravity_earth
 
     cp = cpd + qt*(cpv-cpd)
     R  = Rd  + qt*(Rv-Rd)
-    return T*(1. - (Plcl/P)**(R/cp)) * cp/earth_gravity + z
+    return T*(1. - (Plcl/P)**(R/cp)) * cp / g + z
