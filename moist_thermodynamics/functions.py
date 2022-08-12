@@ -322,6 +322,35 @@ def saturation_partition(P,ps,qt):
     qs = partial_pressure_to_mixing_ratio(ps,P) * (1. - qt)
     return np.minimum(qt,qs)
     
+def theta(TK,PPa,qv=0., ql=0., qi=0.):
+    """Returns the potential temperature for an unsaturated moist fluid
+    
+    This expressed the potential temperature in away that makes it possible to account
+    for the influence of the specific water mass (in different phases) to influence the
+    adiabatic factor R/cp.  The default is the usualy dry potential temperature.
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qv: specific vapor mass
+        ql: specific liquid mass
+        qi: specific ice mass
+
+        es: form of the saturation vapor pressure to use
+    
+    """
+    Rd   = constants.dry_air_gas_constant
+    Rv   = constants.water_vapor_gas_constant
+    cpd  = constants.isobaric_dry_air_specific_heat
+    cpv  = constants.isobaric_water_vapor_specific_heat
+    cl   = constants.liquid_water_specific_heat
+    ci   = constants.frozen_water_specific_heat
+    P0   = constants.P0
+    
+    qd    = 1.0-qv-ql-qi
+    kappa = (qd*Rd  + qv*Rv)/(qd*cpd + qv*cpv + ql*cl + qi*ci)
+    return  TK*(P0/PPa)**kappa
+
 def theta_e_bolton(TK,PPa,qt,es=es_liq):
     """Returns the pseudo equivalent potential temperature.
     
@@ -727,3 +756,71 @@ def zlcl(Plcl,T,P,qt,z):
     cp = cpd + qt*(cpv-cpd)
     R  = Rd  + qt*(Rv-Rd)
     return T*(1. - (Plcl/P)**(R/cp)) * cp / g + z
+
+from scipy.integrate import ode
+
+def moist_adiabat(Tbeg,Pbeg,Pend,dP,qt,cc=constants.cl,l=vaporization_enthalpy,es = es_liq):
+    """Returns the temperature and pressure by integrating along a moist adiabat
+    
+    Deriving the moist adiabats by assuming a constant moist potential temperature
+    provides a Rankine-Kirchoff approximation to the moist adiabat.  If thermodynamic
+    constants are allowed to vary with temperature then the intergation must be
+    performed numerically, as outlined here for the case of constant thermodynamic 
+    constants and no accounting for the emergence of a solid condensage phase (ice).
+    
+    The introduction of this function allows one to estimate, for instance, the effect of
+    isentropic freezing on the moist adiabat as follows:
+    
+    Tliq,Px= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.cl,l=mt.vaporization_enthalpy,es = mt.es_mxd)
+    Tice,Py= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.ci,l=mt.sublimation_enthalpy ,es = mt.es_mxd)    
+    
+    T  = np.ones(len(Tx))*constants.T0
+    T[Tliq>constants.T0] = Tliq[Tliq>constants.T0]
+    T[Tice<constants.T0] = Tice[Tice<constants.T0]
+    
+    which introduces an isothermal layer in the region where the fusion enthalpy is sufficient to do
+    the expansional work
+   
+    Args:
+        Tbeg: temperature at P0 in kelvin
+        Pbeg: starting pressure in pascal
+        Pend: pressure to which to integrate to in pascal
+        dP:   integration step
+        qt:   specific mass of total water
+        es:   saturation vapor expression
+        
+    """
+    def f(P,T,qt,cc,l):
+        Rd  = constants.Rd
+        Rv  = constants.Rv
+        cpd = constants.cpd
+        cpv = constants.cpv
+        
+        qv  = saturation_partition(P,es(T),qt)
+        qc  = qt-qv
+        qd  = 1.-qt
+        
+        R   = qd * Rd + qv * Rv
+        cp  = qd * cpd + qv * cpv + qc * cc
+        vol = R * T/P
+    
+        dX_dT  = cp 
+        dX_dP  = vol
+        if (qc > 0.):
+            beta_P = R/(qd*Rd)    
+            beta_T = beta_P * l(T)/(Rv * T) 
+            
+            dX_dT += l(T) * qv * beta_T/T 
+            dX_dP *= ( 1.0 + l(T) * qv * beta_P/(R*T))
+        return dX_dP/dX_dT;
+    
+    Tx = []
+    Px = []
+    r = ode(f).set_integrator('lsoda',atol=0.0001)
+    r.set_initial_value(Tbeg, Pbeg).set_f_params(qt,cc,l)
+    while r.successful() and r.t > Pend:
+        r.integrate(r.t+dP)
+        Tx.append(r.y[0])
+        Px.append(r.t)
+
+    return np.asarray(Tx),np.asarray(Px)
