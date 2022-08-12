@@ -105,6 +105,47 @@ def es_mxd(T):
     """
     return np.minimum(es_liq(T),es_ice(T))
 
+def es_liq_murphykoop(T):
+    """Returns saturation vapor pressure (Pa) over liquid water
+    
+    Encodes the empirical fit (Eq. 10) of Murphy and Koop (2011) which improves on the Wagner and
+    Pruß fits for supercooled conditions.
+    
+    Args:
+        T: temperature in kelvin
+    
+    Reference:
+        Murphy, D. M. & Koop, T. Review of the vapour pressures of ice and supercooled water for
+        atmospheric applications. Q. J. R. Meteorol. Soc. 131, 1539–1565 (2005).
+
+    >>> es_liq_murphykoop(np.asarray([273.16,140.]))
+    array([6.11657044e+02, 9.39696372e-07])
+    """
+
+    X = np.tanh(0.0415*(T - 218.8)) * (53.878 - 1331.22/T - 9.44523 * np.log(T) + 0.014025*T)
+    return np.exp(54.842763 - 6763.22/T - 4.210*np.log(T) + 0.000367*T + X)
+
+def es_liq_hardy(T):
+    """Returns satruation vapor pressure (Pa) over liquid water
+    
+    Encodes the empirical fit (Eq. 10) of Hardy (1998) which is often used in the postprocessing 
+    of radiosondes
+    
+    Args:
+        T: temperature in kelvin
+    
+    Reference:
+        Hardy, B., 1998, ITS-90 Formulations for Vapor Pressure, Frostpoint Temperature, Dewpoint
+        Temperature, and Enhancement Factors in the Range –100 to +100 °C, The Proceedings of the
+        Third International Symposium on Humidity & Moisture, London, England
+
+    >>> es_liq_hardy(np.asarray([273.16,260.]))
+    array([611.65715494, 222.65143353])
+    """
+    X  = (-2.8365744e+3/(T*T) - 6.028076559e+3/T + 19.54263612 - 2.737830188e-2*T 
+          + 1.6261698e-5*T**2 + 7.0229056e-10*T**3 - 1.8680009e-13*T**4 + 2.7150305 * np.log(T))
+    return np.exp(X)
+
 def es_liq_analytic(T, delta_cl=constants.delta_cl):
     """Analytic approximation for saturation vapor pressure over iquid
     
