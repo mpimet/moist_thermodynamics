@@ -269,6 +269,18 @@ def partial_pressure_to_specific_humidity(pp,p):
     r    = partial_pressure_to_mixing_ratio(pp,p)
     return r/(1+r)
 
+def saturation_partition(P,ps,qt):
+    """Returns the water vapor specific humidity given saturation vapor presure
+    
+    When condensate is present the saturation specific humidity and the total
+    specific humidity differ, and the latter weights the mixing ratio when
+    calculating the former from the saturation mixing ratio.  In subsaturated air
+    the vapor speecific humidity is just the total specific humidity
+
+    """   
+    qs = partial_pressure_to_mixing_ratio(ps,P) * (1. - qt)
+    return np.minimum(qt,qs)
+    
 def theta_e_bolton(TK,PPa,qt,es=es_liq):
     """Returns the pseudo equivalent potential temperature.
     
@@ -319,12 +331,10 @@ def theta_e(TK,PPa,qt,es=es_liq):
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
     cl   = constants.liquid_water_specific_heat
-    p2r  = partial_pressure_to_mixing_ratio
     lv   = vaporization_enthalpy
 
     ps = es(TK)
-    qs = p2r(ps,PPa) * (1.0 - qt)
-    qv = np.minimum(qt,qs)
+    qv = saturation_partition(PPa,ps,qt)
 
     Re = (1.0-qt)*Rd
     R  = Re + qv*Rv
@@ -359,12 +369,10 @@ def theta_l(TK,PPa,qt,es=es_liq):
     Rv   = constants.water_vapor_gas_constant
     cpd  = constants.isobaric_dry_air_specific_heat
     cpv  = constants.isobaric_water_vapor_specific_heat
-    p2r  = partial_pressure_to_mixing_ratio
     lv   = vaporization_enthalpy
 
     ps = es(TK)
-    qs = p2r(ps,PPa) * (1. - qt)
-    qv = np.minimum(qt,qs)
+    qv = saturation_partition(PPa,ps,qt)
     ql = qt-qv
 
     R  = Rd*(1-qt) + qv*Rv
@@ -407,7 +415,6 @@ def theta_s(TK,PPa,qt,es=es_liq):
     cpv  = constants.isobaric_water_vapor_specific_heat
     eps1 = constants.rd_over_rv
     eps2 = constants.rv_over_rd_minus_one
-    p2r  = partial_pressure_to_mixing_ratio
     lv   = vaporization_enthalpy
 
     kappa = Rd/cpd
@@ -420,8 +427,7 @@ def theta_s(TK,PPa,qt,es=es_liq):
     r0    = e0/(P0-e0)/eta
 
     ps = es(TK)
-    qs = p2r(ps,PPa) * (1. - qt)
-    qv = np.minimum(qt,qs)
+    qv = saturation_partition(PPa,ps,qt)
     ql = qt-qv
 
     R  = Rd + qv*(Rv - Rd)
@@ -483,11 +489,9 @@ def theta_rho(TK,PPa,qt,es=es_liq):
     """
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
-    p2r  = partial_pressure_to_mixing_ratio
 
     ps = es(TK)
-    qs = p2r(ps,PPa) * (1. - qt)
-    qv = np.minimum(qt,qs)
+    qv = saturation_partition(PPa,ps,qt)
     theta_rho = theta_l(TK,PPa,qt,es) * (1.-qt + qv*Rv/Rd)
     return(theta_rho)
 
