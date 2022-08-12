@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+Provides accurate thermodynamic functions for moist atmosphere
+
 Author: Bjorn Stevens (bjorn.stevens@mpimet.mpg.de)
+copygright, bjorn stevens Max Planck Institute for Meteorology, Hamburg
+
+License: BSD-3C
 """
 #
 from . import constants
@@ -8,7 +13,16 @@ import numpy as np
 from scipy import interpolate, optimize
 
 def planck(T,nu):
-    """ Returns the Planck source function for the given temperature (K) and frequency (Hz)
+    """Planck source function (J/m2 per steradian per Hz)
+    
+    Args:
+        T: temperature in kelvin
+        nu: frequency in Hz
+        
+    Returns:
+        Returns the radiance in the differential frequency interval per unit steradian. Usually we
+        multiply by $\pi$ to convert to irradiances 
+        
     >>> planck(300,1000*constants.c)
     8.086837160291128e-15
     """
@@ -18,9 +32,20 @@ def planck(T,nu):
     return (2 * h * nu**3 / c**2) / (np.exp(h*nu/(kB*T))-1)
 
 def es_liq(T):
-    """ Returns the saturation vapor pressure of water over liquid following Wagner and Pruss (2002)
-    fits for saturation over planar liquid. These formulations were found to be the most accurate as
-    compared to the IAPWS standard for warm temperatures
+    """Returns saturation vapor pressure (Pa) over planer liquid water
+    
+    Encodes the empirical fits of Wagner and Pruss (2002), Eq 2.5a (page 399). Their formulation
+    is compared to other fits in the example scripts used in this package, and deemed to be the 
+    best reference.
+        
+    Args:
+        T: temperature in kelvin
+                
+    Reference: 
+        W. Wagner and A. Pruß , "The IAPWS Formulation 1995 for the Thermodynamic Properties
+    of Ordinary Water Substance for General and Scientific Use", Journal of Physical and Chemical
+    Reference Data 31, 387-535 (2002) https://doi.org/10.1063/1.1461829
+    
     >>> es_liq(np.asarray([273.16,305.]))
     array([ 611.65706974, 4719.32683147])
     """
@@ -33,8 +58,20 @@ def es_liq(T):
     return es
 
 def es_ice(T):
-    """ Returns the saturation vapor pressure of water over ice following Wagner et al., (2011) 
-    fits for saturation over ice, these also define the IAPWS standard for ice.
+    """Returns sublimation vapor pressure (Pa) over simple (Ih) ice
+    
+    Encodes the emperical fits of Wagner et al., (2011) which also define the IAPWS standard for
+    sublimation vapor pressure over ice-Ih
+    
+    Args:
+        T: temperature in kelvin
+    
+    Reference:
+        Wagner, W., Riethmann, T., Feistel, R. & Harvey, A. H. New Equations for the Sublimation
+        Pressure and Melting Pressure of H 2 O Ice Ih. Journal of Physical and Chemical Reference
+        Data 40, 043103 (2011).
+
+
     >>> es_ice(np.asarray([273.16,260.]))
     array([611.655     , 195.80103377])
     """
@@ -52,19 +89,44 @@ def es_ice(T):
     return es
 
 def es_mxd(T):
-    """ Saturation vapor pressure of water over liquid (T>Tmelt) or ice (T>Tmel) following the
-    Wagner and Pruss (2002) and Wagner et al (2011) formuations for each of these.
+    """Returns the minimum of the sublimation and saturation vapor pressure
+    
+    Calculates both the sublimation vapor pressure over ice Ih using es_ice and that over planar
+    water using es_liq, and returns the minimum of the two quantities.
+    
+    Args:
+        T: temperature in kelvin
+        
+    Returns:
+        value of es_ice(T) for T < 273.15 and es_liq(T) otherwise
+    
     >>> es_mxd(np.asarray([305.,260.]))
     array([4719.32683147,  195.80103377])
     """
     return np.minimum(es_liq(T),es_ice(T))
 
 def es_liq_analytic(T, delta_cl=constants.delta_cl):
-    """ Returns an analytic approximation to the saturation vapor pressure over liquid
-    that depends on the differential specific heats (cpv-cl).  Useful for computations
-    that require consisntency with assumption of cp's being constant.  The analytic
-    expressions become identical to Romps (2017) in the case when the differential specific
-    heats are adjusted to his suggested values.
+    """Analytic approximation for saturation vapor pressure over iquid
+    
+    Uses the rankine (constant specific heat, negligible condensate volume) approximations to 
+    calculate the saturation vapor pressure over liquid.  The procedure is described in Eq(4) of
+    Romps (2017) and best approximates the actual value for specific heats that differ slightly
+    from the best estimates of these quantities which are provided as default quantities.  
+    Romps recommends cl = 4119 J/kg/K, and cpv = 1861 J/kg/K.
+    
+    Args:
+        T: temperature in kelvin
+        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+    
+    Returns:
+        value of saturation vapor pressure over liquid water in Pa
+        
+    Reference:
+        Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
+        Sciences 74, 3891–3900 (2017).
+        Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
+        Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
+        
     >>> es_liq_analytic(np.asarray([273.16,305.]))
     array([ 611.655     , 4711.13161169])
     """
@@ -79,11 +141,28 @@ def es_liq_analytic(T, delta_cl=constants.delta_cl):
     return es
 
 def es_ice_analytic(T, delta_ci=constants.delta_ci):
-    """ Returns an analytic approximation to the saturation vapor pressure over ice
-    that depends on the differential specific heats (cpv-ci).  Useful for computations
-    that require consisntency with assumption of cp's being constant.  The analytic
-    expressions become identical to Romps (2017) in the case when the differential specific
-    heats are adjusted to his suggested values.
+    """Analytic approximation for saturation vapor pressure over ice
+    
+    Uses the rankine (constant specific heat, negligible condensate volume) approximations to 
+    calculate the saturation vapor pressure over ice.  The procedure is described in Eq(4) of
+    Romps (2017) and best approximates the actual value for specific heats that differ slightly
+    from the best estimates of these quantities which are provided as default quantities.  
+    Romps recommends ci = 1861 J/kg/K, and cpv = 1879 J/kg/K.
+    
+    Args:
+        T: temperature in kelvin
+        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+    
+    Returns:
+        value of saturation vapor pressure over liquid water in Pa
+        
+    Reference:
+        Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
+        Sciences 74, 3891–3900 (2017).
+        Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
+        Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
+
+
     >>> es_ice_analytic(np.asarray([273.16,260.]))
     array([611.655     , 195.99959431])
     """
@@ -98,16 +177,34 @@ def es_ice_analytic(T, delta_ci=constants.delta_ci):
     return es
 
 def es_mxd_analytic(T, delta_cl=constants.delta_cl, delta_ci=constants.delta_ci):
-    """ Saturation vapor pressure of water over liquid (T>Tmelt) or ice (T>Tmel) following the
-    analytic formulations (constant cp) for each of these.
+    """Returns the minimum of the analytic sublimation and saturation vapor pressure
+    
+    Calculates both the sublimation vapor pressure over ice Ih using es_ice_analytic and
+    that over planar water using es_liq_analytic, and returns the minimum of the two
+    quantities.
+    
+    Args:
+        T: temperature in kelvin
+        
+    Returns:
+        value of es_ice_analytic(T) for T < 273.15 and es_liq_analytic(T) otherwise
+    
     >>> es_ice_analytic(np.asarray([273.16,260.]))
     array([611.655     , 195.99959431])
     """
     return np.minimum(es_liq_analytic(T,delta_cl),es_ice_analytic(T,delta_ci))
 
 def vaporization_enthalpy(TK,delta_cl=constants.delta_cl):
-    """ Returns the enthlapy [J/g] of vaporization (default) of water vapor or
-    (if fusion=True) the fusion anthalpy.  Input temperature can be in degC or Kelvin
+    """Returns the vaporization enthlapy of water (J/kg)
+    
+    The vaporization enthalpy is calculated from a linear depdence on temperature about a 
+    reference value valid at the melting temperature.  This approximation is consistent with the 
+    assumption of a Rankine fluid.
+    
+    Args:
+        T: temperature in kelvin
+        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+
     >>> vaporization_enthalpy(np.asarray([305.,273.15]))
     array([2427211.264, 2500930.   ])
     """
@@ -116,8 +213,17 @@ def vaporization_enthalpy(TK,delta_cl=constants.delta_cl):
     return lv0 + delta_cl*(TK-T0)
 
 def sublimation_enthalpy(TK,delta_ci=constants.delta_ci):
-    """ Returns the enthlapy [J/g] of vaporization (default) of water vapor or
-    (if fusion=True) the fusion anthalpy.  Input temperature can be in degC or Kelvin
+    """Returns the sublimation enthlapy of water (J/kg)
+    
+    The sublimation enthalpy is calculated from a linear depdence on temperature about a 
+    reference value valid at the melting temperature.  This approximation is consistent with the 
+    assumption of a Rankine fluid.
+    
+    Args:
+        T: temperature in kelvin
+        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+
+
     >>> sublimation_enthalpy(273.15)
     2834350.0
     """
@@ -126,8 +232,8 @@ def sublimation_enthalpy(TK,delta_ci=constants.delta_ci):
     return ls0 + delta_ci*(TK-T0)
 
 def partial_pressure_to_mixing_ratio(pp,p):
-    """ Calculates mixing ratio from the partial and total pressure assuming
-    no condensate is present. Returns value in units of kg/kg.
+    """Returns the mass mixing ratio given the partial pressure and pressure
+    
     >>> partial_pressure_to_mixing_ratio(es_liq(300.),60000.)
     0.0389569254590098
     """
@@ -135,8 +241,13 @@ def partial_pressure_to_mixing_ratio(pp,p):
     return eps1*pp/(p-pp)
 
 def mixing_ratio_to_partial_pressure(r,p):
-    """ Calculates partial pressure from mixing ratio and pressure, if mixing ratio
-    units are greater than 1 they are normalized by 1000.
+    """Returns the partial pressure (pp in units of p) from a gas' mixing ratio
+    
+    Args:
+        r: mass mixing ratio (unitless)
+        p: pressure in same units as desired return value 
+    
+
     >>> mixing_ratio_to_partial_pressure(2e-5,60000.)
     1.929375975915276
     """
@@ -144,9 +255,14 @@ def mixing_ratio_to_partial_pressure(r,p):
     return r*p/(eps1+r)
 
 def partial_pressure_to_specific_humidity(pp,p):
-    """ Calculates specific mass from the partial and total pressure
-    assuming both have same units and no condensate is present.  Returns value
-    in units of kg/kg.
+    """Returns the specific mass given the partial pressure and pressure.  
+    
+    The specific mass can be written in terms of partial pressure and pressure as
+    expressed here only if the gas quanta contains no condensate phases.  In this 
+    case the specific humidity is the same as the co-dryair specific mass. In
+    situations where condensate is present one should instead calculate 
+    $q = r*(1-qt)$ which would require an additional argument
+
     >>> partial_pressure_to_specific_humidity(es_liq(300.),60000.)
     0.037496189210922945
     """   
@@ -154,7 +270,20 @@ def partial_pressure_to_specific_humidity(pp,p):
     return r/(1+r)
 
 def theta_e_bolton(TK,PPa,qt,es=es_liq):
-    """ Calculates pseudo equivalent potential temperature. following Bolton
+    """Returns the pseudo equivalent potential temperature.
+    
+    Following Eq. 43 in Bolton (1980) the (pseudo) equivalent potential temperature
+    is calculated and returned by this function
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: specific total water mass
+        es: form of the saturation vapor pressure to use
+    
+    Reference:
+        Bolton, D. The Computation of Equivalent Potential Temperature. Monthly Weather 
+        Review 108, 1046–1053 (1980).
     """
     P0    = constants.standard_pressure
     p2r   = partial_pressure_to_mixing_ratio
@@ -167,8 +296,23 @@ def theta_e_bolton(TK,PPa,qt,es=es_liq):
     return  TK*(P0/PPa)**(0.2854*(1.0 - 0.28*rv)) * np.exp((3376./TL - 2.54)*rv*(1+0.81*rv))
 
 def theta_e(TK,PPa,qt,es=es_liq):
-    """ Calculates equivalent potential temperature corresponding to Eq. 2.42 in the Clouds
-    and Climate book.
+    """Returns the equivalent potential temperature
+    
+    Follows Eq. 11 in Marquet and Stevens (2022). The closed form solutionis derived for a
+    Rankine-Kirchoff fluid (constant specific heats).  Differences arising from its
+    calculation using more accurate expressions (such as the default) as opposed to less 
+    accurate, but more consistent, formulations are on the order of millikelvin
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+        
+    Reference:
+        Marquet, P. & Stevens, B. On Moist Potential Temperatures and Their Ability to
+        Characterize Differences in the Properties of Air Parcels. Journal of the Atmospheric
+        Sciences 79, 1089–1103 (2022).
     """
     P0   = constants.standard_pressure
     Rd   = constants.dry_air_gas_constant
@@ -192,8 +336,23 @@ def theta_e(TK,PPa,qt,es=es_liq):
     return(theta_e)
 
 def theta_l(TK,PPa,qt,es=es_liq):
-    """ Calculates liquid-water potential temperature.  Following Stevens and Siebesma
-    Eq. 2.44-2.45 in the Clouds and Climate book
+    """Returns the liquid-water potential temperature
+    
+    Follows Eq. 16 in Marquet and Stevens (2022). The closed form solutionis derived for a
+    Rankine-Kirchoff fluid (constant specific heats).  Differences arising from its
+    calculation using more accurate expressions (such as the default) as opposed to less 
+    accurate, but more consistent, formulations are on the order of millikelvin
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+        
+    Reference:
+        Marquet, P. & Stevens, B. On Moist Potential Temperatures and Their Ability to
+        Characterize Differences in the Properties of Air Parcels. Journal of the Atmospheric
+        Sciences 79, 1089–1103 (2022).
     """
     P0   = constants.standard_pressure
     Rd   = constants.dry_air_gas_constant
@@ -217,8 +376,26 @@ def theta_l(TK,PPa,qt,es=es_liq):
     return(theta_l)
 
 def theta_s(TK,PPa,qt,es=es_liq):
-    """ Calculates entropy potential temperature. This follows the formulation of Pascal
-    Marquet and ensures that parcels with different theta-s have a different entropy
+    """Returns the entropy potential temperature
+    
+    Follows Eq. 18 in Marquet and Stevens (2022). The closed form solutionis derived for a
+    Rankine-Kirchoff fluid (constant specific heats).  Differences arising from its
+    calculation using more accurate expressions (such as the default) as opposed to less 
+    accurate, but more consistent, formulations are on the order of millikelvin
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+        
+    Reference:
+        Marquet, P. & Stevens, B. On Moist Potential Temperatures and Their Ability to
+        Characterize Differences in the Properties of Air Parcels. Journal of the Atmospheric
+        Sciences 79, 1089–1103 (2022).
+        
+        Marquet, P. Definition of a moist entropy potential temperature: application to FIRE-I
+        data flights: Moist Entropy Potential Temperature. Q.J.R. Meteorol. Soc. 137, 768–791 (2011).
     """
     P0   = constants.standard_pressure
     T0   = constants.standard_temperature
@@ -258,8 +435,20 @@ def theta_s(TK,PPa,qt,es=es_liq):
     return(theta_s)
 
 def theta_es(TK,PPa,es=es_liq):
-    """ Calculates equivalent potential temperature corresponding to Eq. 2.42 in the Clouds
-    and Climate book but assuming that the water amount is just saturated
+    """Returns the saturated equivalent potential temperature
+    
+    Adapted from Eq. 11 in Marquet and Stevens (2022) with the assumption that the gas quanta is
+    everywhere just saturated.
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+        
+    Reference:
+        Characterize Differences in the Properties of Air Parcels. Journal of the Atmospheric
+        Sciences 79, 1089–1103 (2022).
     """
     P0   = constants.standard_pressure
     Rd   = constants.dry_air_gas_constant
@@ -280,87 +469,177 @@ def theta_es(TK,PPa,es=es_liq):
     return(theta_es)
 
 def theta_rho(TK,PPa,qt,es=es_liq):
-    """ Calculates theta_rho as theta_l * (1+Rd/Rv qv - qt)
+    """Returns the density liquid-water potential temperature
+    
+    calculates $\theta_\mathrm{l} R/R_\mathrm{d}$ where $R$ is the gas constant of a
+    most fluid.  For an unsaturated fluid this is identical to the density potential
+    temperature baswed on the two component fluid thermodynamic constants.
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
     """
     Rd   = constants.dry_air_gas_constant
     Rv   = constants.water_vapor_gas_constant
-    eps1 = constants.rd_over_rv
     p2r  = partial_pressure_to_mixing_ratio
 
     ps = es(TK)
     qs = p2r(ps,PPa) * (1. - qt)
     qv = np.minimum(qt,qs)
-    theta_rho = theta_l(TK,PPa,qt,es) * (1.+ qv/eps1 - qt)
+    theta_rho = theta_l(TK,PPa,qt,es) * (1.-qt + qv*Rv/Rd)
     return(theta_rho)
 
 def T_from_Te(Te,P,qt,es=es_liq):
-    """ Given theta_e solves implicitly for the temperature at some other pressure,
-    so that theta_e(T,P,qt) = Te
+    """Returns temperature for an atmosphere whose state is given by theta_e
+    
+    This  equation allows the temperature to be inferred from a state description
+    in terms of theta_e.  It derives temperature by numerically inverting the
+    expression for theta_e provided in this package.  Uses a least-squares non-linear
+    optimization to find the value of T such that $theta_e(T,P,q) = theta_e$
+
+Args:
+        Te: equivalent potential temperature in kelvin
+        P: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+
 	>>> T_from_Te(350.,100000.,17.e-3)
 	array([304.49321301])
     """
-    def zero(T,Te,P,qt,es=es):
-        return  np.abs(Te-theta_e(T,P,qt,es=es))
+    def zero(T,Te,P,qt,es):
+        return  np.abs(Te-theta_e(T,P,qt,es))
     return optimize.fsolve(zero,   280., args=(Te,P,qt,es), xtol=1.e-10)
 
 def T_from_Tl(Tl,P,qt,es=es_liq):
-    """ Given theta_e solves implicitly for the temperature at some other pressure,
-    so that theta_e(T,P,qt) = Te
+    """returns temperature for an atmosphere whose state is given by theta_l
+    
+    This  equation allows the temperature to be inferred from a state description
+    in terms of theta_l.  It derives temperature by numerically inverting the
+    expression for theta_l provided in this package.  Uses a least-squares non-linear
+    optimization to find the value of T such that $theta_l(T,P,q) = theta_l$
+
+Args:
+        Tl: liquid-water potential temperature in kelvin
+        P: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+
 	>>> T_from_Tl(282., 90000, 20.e-3)
 	array([289.73684039])
     """
-    def zero(T,Tl,P,qt,es=es):
-        return  np.abs(Tl-theta_l(T,P,qt,es=es))    
+    def zero(T,Tl,P,qt,es):
+        return  np.abs(Tl-theta_l(T,P,qt,es))
+    
     return optimize.fsolve(zero,   280., args=(Tl,P,qt,es), xtol=1.e-10)
 
 def T_from_Ts(Ts,P,qt,es=es_liq):
-    """ Given theta_e solves implicitly for the temperature at some other pressure,
-    so that theta_e(T,P,qt) = Te
+    """Returns temperature for an atmosphere whose state is given by theta_s
+    
+    This  equation allows the temperature to be inferred from a state description
+    in terms of theta_s.  It derives temperature by numerically inverting the
+    expression for theta_s provided in this package.  Uses a least-squares non-linear
+    optimization to find the value of T such that $theta_s(T,P,q) = theta_s$
+
+Args:
+        Ts: entropy potential temperature in kelvin
+        P: pressure in pascal
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+
 	>>> T_from_Tl(282.75436951,90000,20.e-3)
 	array([289.98864293])
     """
-    def zero(T,Ts,P,qt,es=es):
-        return  np.abs(Ts-theta_s(T,P,qt,es=es))  
+    def zero(T,Ts,P,qt,es):
+        return  np.abs(Ts-theta_s(T,P,qt,es))  
+    
     return optimize.fsolve(zero,   280., args=(Ts,P,qt,es), xtol=1.e-10)
 
 def P_from_Te(Te,T,qt,es=es_liq):
-    """ Given Te solves implicitly for the pressure at some temperature and qt
-    so that theta_e(T,P,qt) = Te
+    """Returns pressure for an atmosphere whose state is given by theta_e
+    
+    This  equation allows the pressure to be inferred from a state description
+    in terms of theta_e.  It derives pressure by numerically inverting the
+    expression for theta_e provided in this package.  Uses a least-squares non-linear
+    optimization to find the value of P such that $theta_e(T,P,q) = theta_e$
+    
+Args:
+        Tl: liquid-water potential temperature in kelvin
+        T:  temperature in kelvin
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+
 	>>> P_from_Te(350.,305.,17e-3)
 	array([100586.3357635])
     """
-    def zero(P,Te,T,qt,es=es_liq):
-        return np.abs(Te-theta_e(T,P,qt,es=es))
+    def zero(P,Te,T,qt,es):
+        return np.abs(Te-theta_e(T,P,qt,es))
+    
     return optimize.fsolve(zero, 90000., args=(Te,T,qt,es), xtol=1.e-10)
 
 def P_from_Tl(Tl,T,qt,es=es_liq):
-    """ Given Tl solves implicitly for the pressure at some temperature and qt
-    so that theta_l(T,P,qt) = Tl
+    """Returns pressure for an atmosphere whose state is given by theta_l
+    
+    This  equation allows the pressure to be inferred from a state description
+    in terms of theta_l.  It derives pressure by numerically inverting the
+    expression for theta_l provided in this package.  Uses a least-squares non-linear
+    optimization to find the value of P such that $theta_l(T,P,q) = theta_l$
+    
+    Args:
+        Tl: liquid-water potential temperature in kelvin
+        T:  temperature in kelvin
+        qt: total water specific humidity (unitless)
+        es: form of the saturation vapor pressure
+
 	>>> P_from_Tl(282.75436951,290,20.e-3)
 	array([90027.65146427])
     """
-    def zero(P,Tl,T,qt,es=es):
-        return np.abs(Tl-theta_l(T,P,qt,es=es))
+    def zero(P,Tl,T,qt,es):
+        return np.abs(Tl-theta_l(T,P,qt,es))
+    
     return optimize.fsolve(zero, 90000., args=(Tl,T,qt,es), xtol=1.e-10)
 
 def plcl(TK,PPa,qt,es=es_liq):
-    """ Iteratively solve for the pressure [Pa] of the LCL, allows for saturate air.
+    """Returns the pressure at the lifting condensation level
+    
+    Calculates the lifting condensation level pressure using an interative solution under the
+    constraint of constant theta-l. Exact to within the accuracy of the expression of theta-l
+    which depends on the expression for the saturation vapor pressure
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: specific total water mass
+        
 	>>> plcl(300.,102000.,17e-3)
 	array([95971.69750248])
     """
-    p2r  = partial_pressure_to_mixing_ratio
-
-    def zero(P,Tl,qt,es=es_liq):
+    
+    def zero(P,Tl,qt,es):
+        p2r   = partial_pressure_to_mixing_ratio
         TK = T_from_Tl(Tl,P,qt)
         qs = p2r(es(TK),P) * (1. - qt)
         return np.abs(qs/qt-1.)
 
-    Tl   = theta_l(TK,PPa,qt)
-    return optimize.fsolve(zero, 80000., args=(Tl,qt), xtol=1.e-5)
+    Tl   = theta_l(TK,PPa,qt,es)
+    return optimize.fsolve(zero, 80000., args=(Tl,qt,es), xtol=1.e-5)
 
 def plcl_bolton(TK,PPa,qt):
-    """ Returns the pressure [Pa] of the LCL using the Bolton formula. Usually accurate to
-    within about 10 Pa, or about 1 m
+    """Returns the pressure at the lifting condensation level
+    
+    Following Bolton (1980) the lifting condensation level pressure is derived from the state
+    of an air parcel.  Usually accurate to within about 10 Pa, or about 1 m
+    
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qt: specific total water mass
+    
+    Reference:
+        Bolton, D. The Computation of Equivalent Potential Temperature. Monthly Weather 
+        Review 108, 1046–1053 (1980).
+        
 	>>> plcl_bolton(300.,102000.,17e-3)
 	95980.41895404423
     """
@@ -377,9 +656,20 @@ def plcl_bolton(TK,PPa,qt):
     return PPa * (Tl/TK)**(cp/R)
 
 def zlcl(Plcl,T,P,qt,z):
-    """ Returns the height of the LCL assuming temperature changes following a
-    dry adiabat with vertical displacements from the height where the ambient
-    temperature is measured.
+    """Returns the height of the LCL above mean sea-level
+    
+    Given the Plcl, calculate its height in meters given the height of the ambient state
+    from which it (Plcl) was calculated.  This is accomplished by assuming temperature
+    changes following a dry adiabat with vertical displacements between the ambient 
+    temperature and the ambient LCL
+    
+    Args:
+        Plcl: lifting condensation level in Pa
+        T: ambient temperature in kelvin
+        P: ambient pressure in pascal
+        qt: specific total water mass
+        z: height at ambient temperature and pressure 
+        
 	>>> zlcl(95000.,300.,90000.,17.e-3,500.)
 	16.621174077862747
     """
