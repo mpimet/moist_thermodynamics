@@ -358,6 +358,30 @@ def saturation_partition(P, ps, qt):
     return np.minimum(qt, qs)
 
 
+def static_energy(TK, qv=0.0, ql=0.0, qi=0.0):
+    """Returns the static energy, defaulting to that for a dry atmosphere
+
+    The moist static energy is calculated so that it includes the effects of composition
+    on the specific heat if specific humidities are included, but defaults to the dry static energy
+
+    Args:
+        TK: temperature in kelvin
+        PPa: pressure in pascal
+        qv: specific vapor mass
+        ql: specific liquid mass
+        qi: specific ice mass
+    """
+    cpd = constants.isobaric_dry_air_specific_heat
+    cpv = constants.isobaric_water_vapor_specific_heat
+    cl = constants.liquid_water_specific_heat
+    ci = constants.frozen_water_specific_heat
+    g = constants.gravity_earth
+
+    qt = qv + ql + qi
+    cp = cpd + qt * (cl - cpd)
+    return TK * cp + qv * lv + gz
+
+
 def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
     """Returns the potential temperature for an unsaturated moist fluid
 
@@ -371,8 +395,6 @@ def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
         qv: specific vapor mass
         ql: specific liquid mass
         qi: specific ice mass
-
-        es: form of the saturation vapor pressure to use
 
     """
     Rd = constants.dry_air_gas_constant
@@ -631,124 +653,54 @@ def theta_rho(TK, PPa, qt, es=es_liq):
     return theta_rho
 
 
-def T_from_Te(Te, P, qt, es=es_liq):
-    """Returns temperature for an atmosphere whose state is given by theta_e
+def invert_for_temperature(f, f_val, P, qt, es=es_liq):
+    """Returns temperature for an atmosphere whose state is given by f, P and qt
 
-        This  equation allows the temperature to be inferred from a state description
-        in terms of theta_e.  It derives temperature by numerically inverting the
-        expression for theta_e provided in this package.  Uses a least-squares non-linear
-        optimization to find the value of T such that $theta_e(T,P,q) = theta_e$
+        Infers the temperature from a state description (f,P,qt), where
+        f(T,P,qt) = fval.  Uses a newton raphson method. This function only
+        works on scalar quantities due to the state dependent number of iterations
+        needed for convergence
 
     Args:
-            Te: equivalent potential temperature in kelvin
+            f(T,P,qt): specified thermodynamice funcint, i.e., theta_l
+            f_val: value of f for which T in kelvin is sought
             P: pressure in pascal
             qt: total water specific humidity (unitless)
-            es: form of the saturation vapor pressure
+            es: form of the saturation vapor pressure, passed to f
 
-            >>> T_from_Te(350.,100000.,17.e-3)
-            array([304.49321301])
+            >>> invert_for_temperature(theta_e, 350.,100000.,17.e-3)
+            304.49321301124695
     """
 
-    def zero(T, Te, P, qt, es):
-        return np.abs(Te - theta_e(T, P, qt, es))
+    def zero(T, f_val):
+        return f_val - f(T, P, qt, es=es)
 
-    return optimize.fsolve(zero, 280.0, args=(Te, P, qt, es), xtol=1.0e-10)
+    return optimize.newton(zero, 280.0, args=(f_val,))
 
 
-def T_from_Tl(Tl, P, qt, es=es_liq):
-    """returns temperature for an atmosphere whose state is given by theta_l
+def invert_for_pressure(f, f_val, T, qt, es=es_liq):
+    """Returns pressure for an atmosphere whose state is given by f, T and qt
 
-        This  equation allows the temperature to be inferred from a state description
-        in terms of theta_l.  It derives temperature by numerically inverting the
-        expression for theta_l provided in this package.  Uses a least-squares non-linear
-        optimization to find the value of T such that $theta_l(T,P,q) = theta_l$
+        Infers the pressure from a state description (f,T,qt), where
+        f(T,P,qt) = fval.  Uses a newton raphson method.  This function only
+        works on scalar quantities due to the state dependent number of iterations
+        needed for convergence.
 
     Args:
-            Tl: liquid-water potential temperature in kelvin
-            P: pressure in pascal
+            f(T,P,qt): specified thermodynamice funcint, i.e., theta_l
+            f_val: value of f for which P in Pa is sought
+            T: temperature in kelvin
             qt: total water specific humidity (unitless)
-            es: form of the saturation vapor pressure
+            es: form of the saturation vapor pressure, passed to f
 
-            >>> T_from_Tl(282., 90000, 20.e-3)
-            array([289.73684039])
+            >>> invert_for_pressure(theta_e, 350.,300.,17.e-3)
+            94908.00501771577
     """
 
-    def zero(T, Tl, P, qt, es):
-        return np.abs(Tl - theta_l(T, P, qt, es))
+    def zero(P, f_val):
+        return f_val - f(T, P, qt, es=es)
 
-    return optimize.fsolve(zero, 280.0, args=(Tl, P, qt, es), xtol=1.0e-10)
-
-
-def T_from_Ts(Ts, P, qt, es=es_liq):
-    """Returns temperature for an atmosphere whose state is given by theta_s
-
-        This  equation allows the temperature to be inferred from a state description
-        in terms of theta_s.  It derives temperature by numerically inverting the
-        expression for theta_s provided in this package.  Uses a least-squares non-linear
-        optimization to find the value of T such that $theta_s(T,P,q) = theta_s$
-
-    Args:
-            Ts: entropy potential temperature in kelvin
-            P: pressure in pascal
-            qt: total water specific humidity (unitless)
-            es: form of the saturation vapor pressure
-
-            >>> T_from_Tl(282.75436951,90000,20.e-3)
-            array([289.98864293])
-    """
-
-    def zero(T, Ts, P, qt, es):
-        return np.abs(Ts - theta_s(T, P, qt, es))
-
-    return optimize.fsolve(zero, 280.0, args=(Ts, P, qt, es), xtol=1.0e-10)
-
-
-def P_from_Te(Te, T, qt, es=es_liq):
-    """Returns pressure for an atmosphere whose state is given by theta_e
-
-        This  equation allows the pressure to be inferred from a state description
-        in terms of theta_e.  It derives pressure by numerically inverting the
-        expression for theta_e provided in this package.  Uses a least-squares non-linear
-        optimization to find the value of P such that $theta_e(T,P,q) = theta_e$
-
-    Args:
-            Tl: liquid-water potential temperature in kelvin
-            T:  temperature in kelvin
-            qt: total water specific humidity (unitless)
-            es: form of the saturation vapor pressure
-
-            >>> P_from_Te(350.,305.,17e-3)
-            array([100586.3357635])
-    """
-
-    def zero(P, Te, T, qt, es):
-        return np.abs(Te - theta_e(T, P, qt, es))
-
-    return optimize.fsolve(zero, 90000.0, args=(Te, T, qt, es), xtol=1.0e-10)
-
-
-def P_from_Tl(Tl, T, qt, es=es_liq):
-    """Returns pressure for an atmosphere whose state is given by theta_l
-
-    This  equation allows the pressure to be inferred from a state description
-    in terms of theta_l.  It derives pressure by numerically inverting the
-    expression for theta_l provided in this package.  Uses a least-squares non-linear
-    optimization to find the value of P such that $theta_l(T,P,q) = theta_l$
-
-    Args:
-        Tl: liquid-water potential temperature in kelvin
-        T:  temperature in kelvin
-        qt: total water specific humidity (unitless)
-        es: form of the saturation vapor pressure
-
-        >>> P_from_Tl(282.75436951,290,20.e-3)
-        array([90027.65146427])
-    """
-
-    def zero(P, Tl, T, qt, es):
-        return np.abs(Tl - theta_l(T, P, qt, es))
-
-    return optimize.fsolve(zero, 90000.0, args=(Tl, T, qt, es), xtol=1.0e-10)
+    return optimize.newton(zero, 80000.0, args=(f_val,))
 
 
 def plcl(TK, PPa, qt, es=es_liq):
@@ -764,17 +716,17 @@ def plcl(TK, PPa, qt, es=es_liq):
         qt: specific total water mass
 
         >>> plcl(300.,102000.,17e-3)
-        array([95971.69750248])
+        array([95971.6975098])
     """
 
-    def zero(P, Tl, qt, es):
+    def zero(P, Tl):
         p2r = partial_pressure_to_mixing_ratio
-        TK = T_from_Tl(Tl, P, qt)
+        TK = invert_for_temperature(theta_l, Tl, P, qt, es=es)
         qs = p2r(es(TK), P) * (1.0 - qt)
         return np.abs(qs / qt - 1.0)
 
-    Tl = theta_l(TK, PPa, qt, es)
-    return optimize.fsolve(zero, 80000.0, args=(Tl, qt, es), xtol=1.0e-5)
+    Tl = theta_l(TK, PPa, qt, es=es)
+    return optimize.fsolve(zero, 80000.0, args=(Tl,))
 
 
 def plcl_bolton(TK, PPa, qt):
