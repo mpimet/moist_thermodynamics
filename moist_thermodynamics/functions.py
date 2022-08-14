@@ -358,28 +358,57 @@ def saturation_partition(P, ps, qt):
     return np.minimum(qt, qs)
 
 
-def static_energy(TK, qv=0.0, ql=0.0, qi=0.0):
-    """Returns the static energy, defaulting to that for a dry atmosphere
+def static_energy(T, Z, qv=0, ql=0, qi=0, hv0=constants.cpv * constants.T0):
+    """Returns the static energy
 
-    The moist static energy is calculated so that it includes the effects of composition
-    on the specific heat if specific humidities are included, but defaults to the dry static energy
+    The static energy is calculated so that it includes the effects of composition on the
+    specific heat if specific humidities are included.  Different common forms of the static
+    energy arise from different choices of the reference state and condensate loading:
+        - hv0 = cpv*T0      -> frozen, liquid moist static energy
+        - hv0 = ls0 + ci*T0 -> frozen moist static energy
+        - hv0 = cpv*T0      -> liquid water static energy if qi= 0 (default if qv /= 0)
+        - hv0 = lv0 + cl*T0 -> moist static energy if qi= 0.
+        - qv=ql=q0=0        -> dry static energy (default)
+
+    Because the composition weights the reference enthalpies, different choices do not differ by
+    a constant, but rather by a constant weighted by the specific masses of the different water
+    phases.
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        Z: altitude (above mean sea-level) in meters
         qv: specific vapor mass
         ql: specific liquid mass
         qi: specific ice mass
+        hv0: reference vapor enthalpy
+
+        >>> static_energy(300.,600.,15.e-3,hv0=constants.lv0 + constants.cl * constants.T0)
+        358162.78621841426
+
     """
     cpd = constants.isobaric_dry_air_specific_heat
     cpv = constants.isobaric_water_vapor_specific_heat
     cl = constants.liquid_water_specific_heat
     ci = constants.frozen_water_specific_heat
+    lv0 = constants.lv0
+    ls0 = constants.ls0
+    T0 = constants.T0
     g = constants.gravity_earth
 
-    qt = qv + ql + qi
-    cp = cpd + qt * (cl - cpd)
-    return TK * cp + qv * lv + gz
+    qd = 1.0 - qv - ql - qi
+    cp = qd * cpd + qv * cpv + ql * cl + qi * ci
+
+    h = (
+        qd * cpd * T
+        + qv * cpv * T
+        + ql * cl * T
+        + qi * ci * T
+        + qv * (hv0 - cpv * T0)
+        + ql * (hv0 - lv0 - cl * T0)
+        + qi * (hv0 - ls0 - ci * T0)
+        + g * Z
+    )
+    return h
 
 
 def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
