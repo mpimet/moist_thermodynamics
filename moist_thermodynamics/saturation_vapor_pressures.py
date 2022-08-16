@@ -142,7 +142,41 @@ def liq_hardy(T):
     return np.exp(X)
 
 
-def liq_analytic(T, cl=constants.cl):
+def analytic(T, lx, cx):
+    """returns saturation vapor pressure over a given phase
+
+    Uses the rankine (constant specific heat, negligible condensate volume) approximations to
+    calculate the saturation vapor pressure over a phase with the specific heat cx, and phase
+    change enthalpy (from vapor) lx, at temperature T.
+
+    Args:
+        T: temperature in kelvin
+        lx: phase change enthalpy between vapor and given phase (liquid, ice)
+        cx: specific heat capacity of given phase (liquid, ice)
+
+    Returns:
+        value of saturation vapor pressure over liquid water in Pa
+
+    Reference:
+        Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
+        Sciences 74, 3891–3900 (2017).
+        Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
+        Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
+
+    >>> analytic(305.,constants.lvT,constants.cl)
+    4711.131611687174
+    """
+    TvT = constants.temperature_water_vapor_triple_point
+    PvT = constants.pressure_water_vapor_triple_point
+    Rv = constants.water_vapor_gas_constant
+
+    c1 = (constants.cpv - cx) / Rv
+    c2 = lx / (Rv * TvT) - c1
+    es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
+    return es
+
+
+def liq_analytic(T, lx=constants.lvT, cx=constants.cl):
     """Analytic approximation for saturation vapor pressure over iquid
 
     Uses the rankine (constant specific heat, negligible condensate volume) approximations to
@@ -153,7 +187,8 @@ def liq_analytic(T, cl=constants.cl):
 
     Args:
         T: temperature in kelvin
-        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+        lx: enthalpy of vaporization, at triple point, default constants.lvT
+        cl: specific heat capacity of liquid at triple point
 
     Returns:
         value of saturation vapor pressure over liquid water in Pa
@@ -167,18 +202,10 @@ def liq_analytic(T, cl=constants.cl):
     >>> liq_analytic(np.asarray([273.16,305.]))
     array([ 611.655     , 4711.13161169])
     """
-    TvT = constants.temperature_water_vapor_triple_point
-    PvT = constants.pressure_water_vapor_triple_point
-    lvT = constants.vaporization_enthalpy_triple_point
-    Rv = constants.water_vapor_gas_constant
-
-    c1 = (constants.cpv - cl) / Rv
-    c2 = lvT / (Rv * TvT) - c1
-    es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
-    return es
+    return analytic(T, lx, cx)
 
 
-def ice_analytic(T, ci=constants.ci):
+def ice_analytic(T, lx=constants.lsT, cx=constants.ci):
     """Analytic approximation for saturation vapor pressure over ice
 
     Uses the rankine (constant specific heat, negligible condensate volume) approximations to
@@ -189,10 +216,11 @@ def ice_analytic(T, ci=constants.ci):
 
     Args:
         T: temperature in kelvin
-        delta_cl: differnce between isobaric specific heat capacity of vapor and that of liquid.
+        lx: enthalpy of sublimation, at triple point, default constants.lsT
+        ci: specific heat capacity of ice Ih, at triple point
 
     Returns:
-        value of saturation vapor pressure over liquid water in Pa
+        value of saturation vapor pressure over ice in Pa
 
     Reference:
         Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
@@ -204,23 +232,16 @@ def ice_analytic(T, ci=constants.ci):
     >>> ice_analytic(np.asarray([273.16,260.]))
     array([611.655     , 195.99959431])
     """
-    TvT = constants.temperature_water_vapor_triple_point
-    PvT = constants.pressure_water_vapor_triple_point
-    lsT = constants.sublimation_enthalpy_triple_point
-    Rv = constants.water_vapor_gas_constant
+    return analytic(T, lx, cx)
 
-    c1 = (constants.cpv-ci) / Rv
-    c2 = lsT / (Rv * TvT) - c1
-    es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
-    return es
 
-def tetens(T,a,b):
+def tetens(T, a, b):
     """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
 
-    This equation is written in a general form, with the constants a and b determining the fit.  As 
-    such it can be specified for either ice or water, or adapted as originally impelemented in ICON, 
+    This equation is written in a general form, with the constants a and b determining the fit.  As
+    such it can be specified for either ice or water, or adapted as originally impelemented in ICON,
     in which case PvT and TvT need to be substituted by Pv0 and T0.
-    
+
     Args:
         T: temperature in kelvin
 
@@ -237,7 +258,7 @@ def liq_tetens(T):
 
     This equation is what is used in the ICON code, hence its inclusion in this library.  The original
     ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=17.269, b=35.86).
-    This implementation is referenced to the triple point values of temperature and vapor and with 
+    This implementation is referenced to the triple point values of temperature and vapor and with
     revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
 
     Args:
@@ -250,10 +271,10 @@ def liq_tetens(T):
     >>> liq_tetens(np.asarray([273.16,305.]))
     array([ 611.655     , 4719.73680592])
     """
-    a = 17.41463775 
+    a = 17.41463775
     b = 33.6393413
 
-    return tetens(T,a,b)
+    return tetens(T, a, b)
 
 
 def ice_tetens(T):
@@ -261,7 +282,7 @@ def ice_tetens(T):
 
     This equation is what is used in the ICON code, hence its inclusion in this library.  The original
     ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=21.875, b=7.66).
-    This implementation is referenced to the triple point values of temperature and vapor and with 
+    This implementation is referenced to the triple point values of temperature and vapor and with
     revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
 
     Args:
@@ -275,6 +296,6 @@ def ice_tetens(T):
     array([611.655     , 196.10072658])
     """
     a = 22.0419977
-    b = 5.
+    b = 5.0
 
-    return tetens(T,a,b)
+    return tetens(T, a, b)
