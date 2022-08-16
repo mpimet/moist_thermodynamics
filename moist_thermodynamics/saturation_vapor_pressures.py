@@ -11,13 +11,14 @@ License: BSD-3C
 from . import constants
 import numpy as np
 
+
 def liq_wagner_pruss(T):
     """Returns saturation vapor pressure (Pa) over planer liquid water
 
     Encodes the empirical fits of Wagner and Pruss (2002), Eq 2.5a (page 399). Their formulation
     is compared to other fits in the example scripts used in this package, and deemed to be the
     best reference.
-    
+
     The fit has been verified for TvT <= T < = TvC.  For super cooled water (T<TvT) it deviates
     from the results of Murphy and Koop where were developed for super-cooled water.  It is about
     10% larger at 200 K, 25 % larter at 150 K, and then decreases again so it is 12% smaller at
@@ -85,12 +86,13 @@ def ice_wagner_etal(T):
     es = PvT * np.exp((a1 * theta**b1 + a2 * theta**b2 + a3 * theta**b3) / theta)
     return es
 
+
 def liq_murphy_koop(T):
     """Returns saturation vapor pressure (Pa) over liquid water
 
     Encodes the empirical fit (Eq. 10) of Murphy and Koop (2011) which improves on the Wagner and
-    Pruß fits for supercooled conditions. 
-    
+    Pruß fits for supercooled conditions.
+
     The fit has been verified for 123K <= T < = 332 K
 
     Args:
@@ -140,7 +142,7 @@ def liq_hardy(T):
     return np.exp(X)
 
 
-def liq_analytic(T, delta_cl=constants.delta_cl):
+def liq_analytic(T, cl=constants.cl):
     """Analytic approximation for saturation vapor pressure over iquid
 
     Uses the rankine (constant specific heat, negligible condensate volume) approximations to
@@ -170,13 +172,13 @@ def liq_analytic(T, delta_cl=constants.delta_cl):
     lvT = constants.vaporization_enthalpy_triple_point
     Rv = constants.water_vapor_gas_constant
 
-    c1 = delta_cl / Rv
+    c1 = (constants.cpv - cl) / Rv
     c2 = lvT / (Rv * TvT) - c1
     es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
     return es
 
 
-def ice_analytic(T, delta_ci=constants.delta_ci):
+def ice_analytic(T, ci=constants.ci):
     """Analytic approximation for saturation vapor pressure over ice
 
     Uses the rankine (constant specific heat, negligible condensate volume) approximations to
@@ -207,7 +209,72 @@ def ice_analytic(T, delta_ci=constants.delta_ci):
     lsT = constants.sublimation_enthalpy_triple_point
     Rv = constants.water_vapor_gas_constant
 
-    c1 = delta_ci / Rv
+    c1 = (constants.cpv-ci) / Rv
     c2 = lsT / (Rv * TvT) - c1
     es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
     return es
+
+def tetens(T,a,b):
+    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
+
+    This equation is written in a general form, with the constants a and b determining the fit.  As 
+    such it can be specified for either ice or water, or adapted as originally impelemented in ICON, 
+    in which case PvT and TvT need to be substituted by Pv0 and T0.
+    
+    Args:
+        T: temperature in kelvin
+
+    >>> tetens(285.,17.269,35.86)
+    1389.7114123472836
+    """
+
+    es = constants.PvT * np.exp(a * (T - constants.TvT) / (T - b))
+    return es
+
+
+def liq_tetens(T):
+    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
+
+    This equation is what is used in the ICON code, hence its inclusion in this library.  The original
+    ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=17.269, b=35.86).
+    This implementation is referenced to the triple point values of temperature and vapor and with 
+    revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
+
+    Args:
+        T: temperature in kelvin
+
+    Reference:
+        Murray, F. W. On the Computation of Saturation Vapor Pressure. Journal of Applied Meteorology
+        and Climatology 6, 203–204 (1967).
+
+    >>> liq_tetens(np.asarray([273.16,305.]))
+    array([ 611.655     , 4719.73680592])
+    """
+    a = 17.41463775 
+    b = 33.6393413
+
+    return tetens(T,a,b)
+
+
+def ice_tetens(T):
+    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
+
+    This equation is what is used in the ICON code, hence its inclusion in this library.  The original
+    ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=21.875, b=7.66).
+    This implementation is referenced to the triple point values of temperature and vapor and with 
+    revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
+
+    Args:
+        T: temperature in kelvin
+
+    Reference:
+        Murray, F. W. On the Computation of Saturation Vapor Pressure. Journal of Applied Meteorology
+        and Climatology 6, 203–204 (1967).
+
+    >>> ice_tetens(np.asarray([273.16,260.]))
+    array([611.655     , 196.10072658])
+    """
+    a = 22.0419977
+    b = 5.
+
+    return tetens(T,a,b)
