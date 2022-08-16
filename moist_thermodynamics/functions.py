@@ -14,11 +14,11 @@ from scipy import interpolate, optimize
 from . import constants
 from . import saturation_vapor_pressures
 
-es_liq = saturation_vapor_pressures.liq_wagner_pruss
-es_ice = saturation_vapor_pressures.ice_wagner_etal
+es_liq_default = saturation_vapor_pressures.liq_wagner_pruss
+es_ice_default = saturation_vapor_pressures.ice_wagner_etal
 
 
-def es_mxd(T, es_liq=es_liq, es_ice=es_ice):
+def es_mxd(T, es_liq=es_liq_default, es_ice=es_ice_default):
     """Returns the minimum of the sublimation and saturation vapor pressure
 
     Calculates both the sublimation vapor pressure over ice Ih using es_ice and that over planar
@@ -56,7 +56,7 @@ def planck(T, nu):
     return (2 * h * nu**3 / c**2) / (np.exp(h * nu / (kB * T)) - 1)
 
 
-def vaporization_enthalpy(TK, delta_cl=constants.delta_cl):
+def vaporization_enthalpy(T, delta_cl=constants.delta_cl):
     """Returns the vaporization enthlapy of water (J/kg)
 
     The vaporization enthalpy is calculated from a linear depdence on temperature about a
@@ -72,10 +72,10 @@ def vaporization_enthalpy(TK, delta_cl=constants.delta_cl):
     """
     T0 = constants.standard_temperature
     lv0 = constants.vaporization_enthalpy_stp
-    return lv0 + delta_cl * (TK - T0)
+    return lv0 + delta_cl * (T - T0)
 
 
-def sublimation_enthalpy(TK, delta_ci=constants.delta_ci):
+def sublimation_enthalpy(T, delta_ci=constants.delta_ci):
     """Returns the sublimation enthlapy of water (J/kg)
 
     The sublimation enthalpy is calculated from a linear depdence on temperature about a
@@ -92,13 +92,13 @@ def sublimation_enthalpy(TK, delta_ci=constants.delta_ci):
     """
     T0 = constants.standard_temperature
     ls0 = constants.sublimation_enthalpy_stp
-    return ls0 + delta_ci * (TK - T0)
+    return ls0 + delta_ci * (T - T0)
 
 
 def partial_pressure_to_mixing_ratio(pp, p):
     """Returns the mass mixing ratio given the partial pressure and pressure
 
-    >>> partial_pressure_to_mixing_ratio(es_liq(300.),60000.)
+    >>> partial_pressure_to_mixing_ratio(es_liq_default(300.),60000.)
     0.0389569254590098
     """
     eps1 = constants.rd_over_rv
@@ -129,7 +129,7 @@ def partial_pressure_to_specific_humidity(pp, p):
     situations where condensate is present one should instead calculate
     $q = r*(1-qt)$ which would require an additional argument
 
-    >>> partial_pressure_to_specific_humidity(es_liq(300.),60000.)
+    >>> partial_pressure_to_specific_humidity(es_liq_default(300.),60000.)
     0.037496189210922945
     """
     r = partial_pressure_to_mixing_ratio(pp, p)
@@ -202,7 +202,7 @@ def static_energy(T, Z, qv=0, ql=0, qi=0, hv0=constants.cpv * constants.T0):
     return h
 
 
-def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
+def theta(T, P, qv=0.0, ql=0.0, qi=0.0):
     """Returns the potential temperature for an unsaturated moist fluid
 
     This expressed the potential temperature in away that makes it possible to account
@@ -210,8 +210,8 @@ def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
     adiabatic factor R/cp.  The default is the usualy dry potential temperature.
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qv: specific vapor mass
         ql: specific liquid mass
         qi: specific ice mass
@@ -227,18 +227,18 @@ def theta(TK, PPa, qv=0.0, ql=0.0, qi=0.0):
 
     qd = 1.0 - qv - ql - qi
     kappa = (qd * Rd + qv * Rv) / (qd * cpd + qv * cpv + ql * cl + qi * ci)
-    return TK * (P0 / PPa) ** kappa
+    return T * (P0 / P) ** kappa
 
 
-def theta_e_bolton(TK, PPa, qt, es=es_liq):
+def theta_e_bolton(T, P, qt, es=es_liq_default):
     """Returns the pseudo equivalent potential temperature.
 
     Following Eq. 43 in Bolton (1980) the (pseudo) equivalent potential temperature
     is calculated and returned by this function
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: specific total water mass
         es: form of the saturation vapor pressure to use
 
@@ -251,19 +251,19 @@ def theta_e_bolton(TK, PPa, qt, es=es_liq):
     r2p = mixing_ratio_to_partial_pressure
 
     rv = np.minimum(
-        qt / (1.0 - qt), p2r(es(TK), PPa)
+        qt / (1.0 - qt), p2r(es(T), P)
     )  # mixing ratio of vapor (not gas Rv)
-    pv = r2p(rv, PPa)
+    pv = r2p(rv, P)
 
-    TL = 55.0 + 2840.0 / (3.5 * np.log(TK) - np.log(pv / 100.0) - 4.805)
+    TL = 55.0 + 2840.0 / (3.5 * np.log(T) - np.log(pv / 100.0) - 4.805)
     return (
-        TK
-        * (P0 / PPa) ** (0.2854 * (1.0 - 0.28 * rv))
+        T
+        * (P0 / P) ** (0.2854 * (1.0 - 0.28 * rv))
         * np.exp((3376.0 / TL - 2.54) * rv * (1 + 0.81 * rv))
     )
 
 
-def theta_e(TK, PPa, qt, es=es_liq):
+def theta_e(T, P, qt, es=es_liq_default):
     """Returns the equivalent potential temperature
 
     Follows Eq. 11 in Marquet and Stevens (2022). The closed form solutionis derived for a
@@ -272,8 +272,8 @@ def theta_e(TK, PPa, qt, es=es_liq):
     accurate, but more consistent, formulations are on the order of millikelvin
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: total water specific humidity (unitless)
         es: form of the saturation vapor pressure
 
@@ -289,20 +289,20 @@ def theta_e(TK, PPa, qt, es=es_liq):
     cl = constants.liquid_water_specific_heat
     lv = vaporization_enthalpy
 
-    ps = es(TK)
-    qv = saturation_partition(PPa, ps, qt)
+    ps = es(T)
+    qv = saturation_partition(P, ps, qt)
 
     Re = (1.0 - qt) * Rd
     R = Re + qv * Rv
-    pv = qv * (Rv / R) * PPa
+    pv = qv * (Rv / R) * P
     RH = pv / ps
     cpe = cpd + qt * (cl - cpd)
     omega_e = RH ** (-qv * Rv / cpe) * (R / Re) ** (Re / cpe)
-    theta_e = TK * (P0 / PPa) ** (Re / cpe) * omega_e * np.exp(qv * lv(TK) / (cpe * TK))
+    theta_e = T * (P0 / P) ** (Re / cpe) * omega_e * np.exp(qv * lv(T) / (cpe * T))
     return theta_e
 
 
-def theta_l(TK, PPa, qt, es=es_liq):
+def theta_l(T, P, qt, es=es_liq_default):
     """Returns the liquid-water potential temperature
 
     Follows Eq. 16 in Marquet and Stevens (2022). The closed form solutionis derived for a
@@ -311,8 +311,8 @@ def theta_l(TK, PPa, qt, es=es_liq):
     accurate, but more consistent, formulations are on the order of millikelvin
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: total water specific humidity (unitless)
         es: form of the saturation vapor pressure
 
@@ -328,8 +328,8 @@ def theta_l(TK, PPa, qt, es=es_liq):
     cpv = constants.isobaric_water_vapor_specific_heat
     lv = vaporization_enthalpy
 
-    ps = es(TK)
-    qv = saturation_partition(PPa, ps, qt)
+    ps = es(T)
+    qv = saturation_partition(P, ps, qt)
     ql = qt - qv
 
     R = Rd * (1 - qt) + qv * Rv
@@ -337,13 +337,11 @@ def theta_l(TK, PPa, qt, es=es_liq):
     cpl = cpd + qt * (cpv - cpd)
 
     omega_l = (R / Rl) ** (Rl / cpl) * (qt / (qv + 1.0e-15)) ** (qt * Rv / cpl)
-    theta_l = (
-        (TK * (P0 / PPa) ** (Rl / cpl)) * omega_l * np.exp(-ql * lv(TK) / (cpl * TK))
-    )
+    theta_l = (T * (P0 / P) ** (Rl / cpl)) * omega_l * np.exp(-ql * lv(T) / (cpl * T))
     return theta_l
 
 
-def theta_s(TK, PPa, qt, es=es_liq):
+def theta_s(T, P, qt, es=es_liq_default):
     """Returns the entropy potential temperature
 
     Follows Eq. 18 in Marquet and Stevens (2022). The closed form solutionis derived for a
@@ -352,8 +350,8 @@ def theta_s(TK, PPa, qt, es=es_liq):
     accurate, but more consistent, formulations are on the order of millikelvin
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: total water specific humidity (unitless)
         es: form of the saturation vapor pressure
 
@@ -386,18 +384,18 @@ def theta_s(TK, PPa, qt, es=es_liq):
     gamma = kappa / eps1
     r0 = e0 / (P0 - e0) / eta
 
-    ps = es(TK)
-    qv = saturation_partition(PPa, ps, qt)
+    ps = es(T)
+    qv = saturation_partition(P, ps, qt)
     ql = qt - qv
 
     R = Rd + qv * (Rv - Rd)
-    pv = qv * (Rv / R) * PPa
+    pv = qv * (Rv / R) * P
     RH = pv / ps
     rv = qv / (1 - qv)
 
     x1 = (
-        (TK / T0) ** (lmbd * qt)
-        * (P0 / PPa) ** (kappa * delta * qt)
+        (T / T0) ** (lmbd * qt)
+        * (P0 / P) ** (kappa * delta * qt)
         * (rv / r0) ** (-gamma * qt)
         * RH ** (gamma * ql)
     )
@@ -405,8 +403,8 @@ def theta_s(TK, PPa, qt, es=es_liq):
         -kappa * delta * qt
     )
     theta_s = (
-        (TK * (P0 / PPa) ** (kappa))
-        * np.exp(-ql * lv(TK) / (cpd * TK))
+        (T * (P0 / P) ** (kappa))
+        * np.exp(-ql * lv(T) / (cpd * T))
         * np.exp(qt * Lmbd)
         * x1
         * x2
@@ -414,15 +412,15 @@ def theta_s(TK, PPa, qt, es=es_liq):
     return theta_s
 
 
-def theta_es(TK, PPa, es=es_liq):
+def theta_es(T, P, es=es_liq_default):
     """Returns the saturated equivalent potential temperature
 
     Adapted from Eq. 11 in Marquet and Stevens (2022) with the assumption that the gas quanta is
     everywhere just saturated.
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: total water specific humidity (unitless)
         es: form of the saturation vapor pressure
 
@@ -438,20 +436,18 @@ def theta_es(TK, PPa, es=es_liq):
     p2q = partial_pressure_to_specific_humidity
     lv = vaporization_enthalpy
 
-    ps = es(TK)
-    qs = p2q(ps, PPa)
+    ps = es(T)
+    qs = p2q(ps, P)
 
     Re = (1.0 - qs) * Rd
     R = Re + qs * Rv
     cpe = cpd + qs * (cl - cpd)
     omega_e = (R / Re) ** (Re / cpe)
-    theta_es = (
-        TK * (P0 / PPa) ** (Re / cpe) * omega_e * np.exp(qs * lv(TK) / (cpe * TK))
-    )
+    theta_es = T * (P0 / P) ** (Re / cpe) * omega_e * np.exp(qs * lv(T) / (cpe * T))
     return theta_es
 
 
-def theta_rho(TK, PPa, qt, es=es_liq):
+def theta_rho(T, P, qt, es=es_liq_default):
     """Returns the density liquid-water potential temperature
 
     calculates $\theta_\mathrm{l} R/R_\mathrm{d}$ where $R$ is the gas constant of a
@@ -459,21 +455,21 @@ def theta_rho(TK, PPa, qt, es=es_liq):
     temperature baswed on the two component fluid thermodynamic constants.
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: total water specific humidity (unitless)
         es: form of the saturation vapor pressure
     """
     Rd = constants.dry_air_gas_constant
     Rv = constants.water_vapor_gas_constant
 
-    ps = es(TK)
-    qv = saturation_partition(PPa, ps, qt)
-    theta_rho = theta_l(TK, PPa, qt, es) * (1.0 - qt + qv * Rv / Rd)
+    ps = es(T)
+    qv = saturation_partition(P, ps, qt)
+    theta_rho = theta_l(T, P, qt, es) * (1.0 - qt + qv * Rv / Rd)
     return theta_rho
 
 
-def invert_for_temperature(f, f_val, P, qt, es=es_liq):
+def invert_for_temperature(f, f_val, P, qt, es=es_liq_default):
     """Returns temperature for an atmosphere whose state is given by f, P and qt
 
         Infers the temperature from a state description (f,P,qt), where
@@ -498,7 +494,7 @@ def invert_for_temperature(f, f_val, P, qt, es=es_liq):
     return optimize.newton(zero, 280.0, args=(f_val,))
 
 
-def invert_for_pressure(f, f_val, T, qt, es=es_liq):
+def invert_for_pressure(f, f_val, T, qt, es=es_liq_default):
     """Returns pressure for an atmosphere whose state is given by f, T and qt
 
         Infers the pressure from a state description (f,T,qt), where
@@ -523,7 +519,7 @@ def invert_for_pressure(f, f_val, T, qt, es=es_liq):
     return optimize.newton(zero, 80000.0, args=(f_val,))
 
 
-def plcl(TK, PPa, qt, es=es_liq):
+def plcl(T, P, qt, es=es_liq_default):
     """Returns the pressure at the lifting condensation level
 
     Calculates the lifting condensation level pressure using an interative solution under the
@@ -531,8 +527,8 @@ def plcl(TK, PPa, qt, es=es_liq):
     which depends on the expression for the saturation vapor pressure
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: specific total water mass
 
         >>> plcl(300.,102000.,17e-3)
@@ -541,23 +537,23 @@ def plcl(TK, PPa, qt, es=es_liq):
 
     def zero(P, Tl):
         p2r = partial_pressure_to_mixing_ratio
-        TK = invert_for_temperature(theta_l, Tl, P, qt, es=es)
-        qs = p2r(es(TK), P) * (1.0 - qt)
+        T = invert_for_temperature(theta_l, Tl, P, qt, es=es)
+        qs = p2r(es(T), P) * (1.0 - qt)
         return np.abs(qs / qt - 1.0)
 
-    Tl = theta_l(TK, PPa, qt, es=es)
+    Tl = theta_l(T, P, qt, es=es)
     return optimize.fsolve(zero, 80000.0, args=(Tl,))
 
 
-def plcl_bolton(TK, PPa, qt):
+def plcl_bolton(T, P, qt):
     """Returns the pressure at the lifting condensation level
 
     Following Bolton (1980) the lifting condensation level pressure is derived from the state
     of an air parcel.  Usually accurate to within about 10 Pa, or about 1 m
 
     Args:
-        TK: temperature in kelvin
-        PPa: pressure in pascal
+        T: temperature in kelvin
+        P: pressure in pascal
         qt: specific total water mass
 
     Reference:
@@ -575,9 +571,9 @@ def plcl_bolton(TK, PPa, qt):
 
     cp = cpd + qt * (cpv - cpd)
     R = Rd + qt * (Rv - Rd)
-    pv = r2p(qt / (1.0 - qt), PPa)
-    Tl = 55 + 2840.0 / (3.5 * np.log(TK) - np.log(pv / 100.0) - 4.805)
-    return PPa * (Tl / TK) ** (cp / R)
+    pv = r2p(qt / (1.0 - qt), P)
+    Tl = 55 + 2840.0 / (3.5 * np.log(T) - np.log(pv / 100.0) - 4.805)
+    return P * (Tl / T) ** (cp / R)
 
 
 def zlcl(Plcl, T, P, qt, z):
@@ -613,7 +609,14 @@ from scipy.integrate import ode
 
 
 def moist_adiabat(
-    Tbeg, Pbeg, Pend, dP, qt, cc=constants.cl, l=vaporization_enthalpy, es=es_liq
+    Tbeg,
+    Pbeg,
+    Pend,
+    dP,
+    qt,
+    cc=constants.cl,
+    l=vaporization_enthalpy,
+    es=es_liq_default,
 ):
     """Returns the temperature and pressure by integrating along a moist adiabat
 
