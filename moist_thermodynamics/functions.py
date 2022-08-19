@@ -18,23 +18,80 @@ es_liq_default = saturation_vapor_pressures.liq_wagner_pruss
 es_ice_default = saturation_vapor_pressures.ice_wagner_etal
 
 
-def es_mxd(T, es_liq=es_liq_default, es_ice=es_ice_default):
-    """Returns the minimum of the sublimation and saturation vapor pressure
+def make_es_mxd(es_liq, es_ice):
+    """Closure to construct a mixed form of the saturation vapor pressure
 
-    Calculates both the sublimation vapor pressure over ice Ih using es_ice and that over planar
-    water using es_liq, and returns the minimum of the two quantities.
+    To provide a single function that provides the saturation vapor pressure
+    over ice when this is lower, and over water when this is lower, we use a
+    closure function which accepts different choices of the individual saturation
+    vapor pressures.
 
     Args:
-        T: temperature in kelvin
+        es_liq: function call for saturation vapor pressure over liquid
+        es_ice: function call for saturation vapor pressure over ice
 
     Returns:
-        value of es_ice(T) for T < 273.15 and es_liq(T) otherwise
-
-    >>> es_mxd(np.asarray([305.,260.]))
-    array([4719.32683147,  195.80103377])
+        function that selects the minimum of es_ice(T) and es_liq(T)
     """
-    return np.minimum(es_liq(T), es_ice(T))
 
+    def es(T):
+        return np.minimum(es_liq(T), es_ice(T))
+
+    return es
+
+
+def make_static_energy(hv0):
+    """Closure function to construct moist static energies
+
+    When including the effects of composition on the specific heat to calcuate the moist enthalpy, a
+    constitutent part of the static energy different reference states can be adopted.  These reference
+    states effectively weight the contribution of another invariant of the closed system (total water)
+    differently, leading to moist static energies which give different weights to the thermal and phase
+    change energies of the system.  The closure funciton allows one to construct one or the other of
+    these static energies by choosing the approriate reference state vapor enthalpy, which then
+    determines the reference enthalpies of the other phases given the reference state phase change
+    enthalpies.  How the choices affec the construct of the static energy are outlined as follows:
+        - hv0 = cpv*T0      -> frozen, liquid moist static energy
+        - hv0 = ls0 + ci*T0 -> frozen moist static energy
+        - hv0 = cpv*T0      -> liquid water static energy if qi= 0 (default if qv /= 0)
+        - hv0 = lv0 + cl*T0 -> moist static energy if qi= 0.
+        - qv=ql=q0=0        -> dry static energy (default)
+
+    Args:
+        hv0: reference vapor enthalpy
+
+    Returns:
+        h: a function for the moist static energy
+
+    """
+
+    def h(T, Z, qv=0, ql=0, qi=0):
+        """Returns moist static energies given the closure
+
+        This function returns the static energy subject to the vapor reference state enthalpy as
+        given through the closure  I
+
+        Args:
+            T: temperature in kelvin
+            Z: altitude (above mean sea-level) in meters
+            qv: specific vapor mass
+            ql: specific liquid mass
+            qi: specific ice mass
+        """
+
+        qt = qv + ql + qi
+        x = (
+            T * (1.0 - qt) * constants.cpd
+            + hv0 * qt
+            + (T - constants.T0)
+            * (qv * constants.cpv + ql * constants.cl + qi * constants.ci)
+            - ql * constants.lv0
+            - qi * constants.ls0
+            + constants.gravity_earth * Z
+        )
+        return x
+
+    return h
 
 def planck(T, nu):
     """Planck source function (J/m2 per steradian per Hz)
@@ -149,57 +206,10 @@ def saturation_partition(P, ps, qt):
     return np.minimum(qt, qs)
 
 
-def static_energy(T, Z, qv=0, ql=0, qi=0, hv0=constants.cpv * constants.T0):
-    """Returns the static energy
-
-    The static energy is calculated so that it includes the effects of composition on the
-    specific heat if specific humidities are included.  Different common forms of the static
-    energy arise from different choices of the reference state and condensate loading:
-        - hv0 = cpv*T0      -> frozen, liquid moist static energy
-        - hv0 = ls0 + ci*T0 -> frozen moist static energy
-        - hv0 = cpv*T0      -> liquid water static energy if qi= 0 (default if qv /= 0)
-        - hv0 = lv0 + cl*T0 -> moist static energy if qi= 0.
-        - qv=ql=q0=0        -> dry static energy (default)
-
-    Because the composition weights the reference enthalpies, different choices do not differ by
-    a constant, but rather by a constant weighted by the specific masses of the different water
-    phases.
-
-    Args:
-        T: temperature in kelvin
-        Z: altitude (above mean sea-level) in meters
-        qv: specific vapor mass
-        ql: specific liquid mass
-        qi: specific ice mass
-        hv0: reference vapor enthalpy
-
-        >>> static_energy(300.,600.,15.e-3,hv0=constants.lv0 + constants.cl * constants.T0)
-        358162.78621841426
-
-    """
-    cpd = constants.isobaric_dry_air_specific_heat
-    cpv = constants.isobaric_water_vapor_specific_heat
-    cl = constants.liquid_water_specific_heat
-    ci = constants.frozen_water_specific_heat
-    lv0 = constants.lv0
-    ls0 = constants.ls0
-    T0 = constants.T0
-    g = constants.gravity_earth
-
-    qd = 1.0 - qv - ql - qi
-    cp = qd * cpd + qv * cpv + ql * cl + qi * ci
-
-    h = (
-        qd * cpd * T
-        + qv * cpv * T
-        + ql * cl * T
-        + qi * ci * T
-        + qv * (hv0 - cpv * T0)
-        + ql * (hv0 - lv0 - cl * T0)
-        + qi * (hv0 - ls0 - ci * T0)
-        + g * Z
-    )
-    return h
+moist_static_energy = make_static_energy(
+    hv0=constants.lv0 + constants.cl * constants.T0
+)
+liquid_water_static_energy = make_static_energy(hv0=constants.cpv * constants.T0)
 
 
 def theta(T, P, qv=0.0, ql=0.0, qi=0.0):
