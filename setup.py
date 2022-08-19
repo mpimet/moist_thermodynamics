@@ -1,13 +1,4 @@
-# content of setup.py
-from setuptools import setup, find_packages
+from setuptools import setup
 
-setup(
-    name="moist_thermodynamics",
-    version="0.5",
-    description="Constants and functions for the treatment of moist atmospheric thermodynamics",
-    packages=find_packages(),
-    install_requires=[
-        "numpy",
-        "scipy",
-    ],
-)
+
+setup()

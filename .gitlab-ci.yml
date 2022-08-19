@@ -4,9 +4,8 @@ pytest:
   stage: test
   before_script:
     - python3 -m pip install -r requirements.txt
-    - python3 -m pip install pytest
   script:
-    - pytest --doctest-modules --junitxml=report.xml
+    - pytest --junitxml=report.xml
   artifacts:
     when: always
     reports:
