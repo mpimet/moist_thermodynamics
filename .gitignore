@@ -1,1 +1,8 @@
 *.pyc
+build
+moist_thermodynamics.egg-info
+*/.ipynb_checkpoints
+.ipynb_checkpoints
+
+data/*
+moist_thermodynamics/plots/*.pdf

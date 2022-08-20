@@ -142,20 +142,19 @@ def liq_hardy(T):
     return np.exp(X)
 
 
-def analytic(T, lx, cx):
-    """returns saturation vapor pressure over a given phase
+def make_analytic(lx, cx):
+    """closure function for analytic saturation vapor pressure
 
-    Uses the rankine (constant specific heat, negligible condensate volume) approximations to
+    Sets up the rankine (constant specific heat, negligible condensate volume) approximations to
     calculate the saturation vapor pressure over a phase with the specific heat cx, and phase
     change enthalpy (from vapor) lx, at temperature T.
 
     Args:
-        T: temperature in kelvin
         lx: phase change enthalpy between vapor and given phase (liquid, ice)
         cx: specific heat capacity of given phase (liquid, ice)
 
     Returns:
-        value of saturation vapor pressure over liquid water in Pa
+        a function for the saturation vaporp pressure consistent with choice of lx and cx
 
     Reference:
         Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
@@ -163,139 +162,79 @@ def analytic(T, lx, cx):
         Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
         Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
 
-    >>> analytic(305.,constants.lvT,constants.cl)
-    4711.131611687174
+    >>> es = make_analytic(constants.lvT,constants.cl)
+    >>> es( np.asarray([273.15,260.]) )
+    array([611.21094488, 222.70984761])
     """
-    TvT = constants.temperature_water_vapor_triple_point
-    PvT = constants.pressure_water_vapor_triple_point
-    Rv = constants.water_vapor_gas_constant
 
-    c1 = (constants.cpv - cx) / Rv
-    c2 = lx / (Rv * TvT) - c1
-    es = PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
+    def es(T):
+        """Returns satruation vapor pressure (Pa) over liquid constructed using analytic expression
+
+        This function is constructed from the make_analytic closure and returns the saturation vapor
+        pressure defined by the phase change enthalpy and specific heat used in the closure. See
+        make_analytic
+
+        Args:
+            T: temperature in kelvin
+        """
+
+        TvT = constants.temperature_water_vapor_triple_point
+        PvT = constants.pressure_water_vapor_triple_point
+        Rv = constants.water_vapor_gas_constant
+
+        c1 = (constants.cpv - cx) / Rv
+        c2 = lx / (Rv * TvT) - c1
+        return PvT * np.exp(c2 * (1.0 - TvT / T)) * (T / TvT) ** c1
+
     return es
 
 
-def liq_analytic(T, lx=constants.lvT, cx=constants.cl):
-    """Analytic approximation for saturation vapor pressure over iquid
+liq_analytic = make_analytic(lx=constants.lvT, cx=constants.cl)
+ice_analytic = make_analytic(lx=constants.lsT, cx=constants.ci)
 
-    Uses the rankine (constant specific heat, negligible condensate volume) approximations to
-    calculate the saturation vapor pressure over liquid.  The procedure is described in Eq(4) of
-    Romps (2017) and best approximates the actual value for specific heats that differ slightly
-    from the best estimates of these quantities which are provided as default quantities.
-    Romps recommends cl = 4119 J/kg/K, and cpv = 1861 J/kg/K.
+
+def make_tetens(Tref, Pref, a, b):
+    """closure function for tetens saturation vapor pressure
+
+    Constructs the teten's function for the moist static energy through the specification of the
+    constants a and b. As such a Teten's formula can specified for either ice or water, or adapted
+    as originally impelemented in ICON, in which case PvT and TvT need to be substituted by Pv0 and T0.
 
     Args:
-        T: temperature in kelvin
-        lx: enthalpy of vaporization, at triple point, default constants.lvT
-        cl: specific heat capacity of liquid at triple point
+        Tref: reference temperature in kelvin
+        Pref: reference saturation vapor pressure in hPa
+        a: fitting parameter
+        b: fitting parameter
 
     Returns:
-        value of saturation vapor pressure over liquid water in Pa
-
-    Reference:
-        Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
-        Sciences 74, 3891–3900 (2017).
-        Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
-        Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
-
-    >>> liq_analytic(np.asarray([273.16,305.]))
-    array([ 611.655     , 4711.13161169])
-    """
-    return analytic(T, lx, cx)
-
-
-def ice_analytic(T, lx=constants.lsT, cx=constants.ci):
-    """Analytic approximation for saturation vapor pressure over ice
-
-    Uses the rankine (constant specific heat, negligible condensate volume) approximations to
-    calculate the saturation vapor pressure over ice.  The procedure is described in Eq(4) of
-    Romps (2017) and best approximates the actual value for specific heats that differ slightly
-    from the best estimates of these quantities which are provided as default quantities.
-    Romps recommends ci = 1861 J/kg/K, and cpv = 1879 J/kg/K.
-
-    Args:
-        T: temperature in kelvin
-        lx: enthalpy of sublimation, at triple point, default constants.lsT
-        ci: specific heat capacity of ice Ih, at triple point
-
-    Returns:
-        value of saturation vapor pressure over ice in Pa
-
-    Reference:
-        Romps, D. M. Exact Expression for the Lifting Condensation Level. Journal of the Atmospheric
-        Sciences 74, 3891–3900 (2017).
-        Romps, D. M. Accurate expressions for the dew point and frost point derived from the Rankine-
-        Kirchhoff approximations. Journal of the Atmospheric Sciences (2021) doi:10.1175/JAS-D-20-0301.1.
-
-
-    >>> ice_analytic(np.asarray([273.16,260.]))
-    array([611.655     , 195.99959431])
-    """
-    return analytic(T, lx, cx)
-
-
-def tetens(T, a, b):
-    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
-
-    This equation is written in a general form, with the constants a and b determining the fit.  As
-    such it can be specified for either ice or water, or adapted as originally impelemented in ICON,
-    in which case PvT and TvT need to be substituted by Pv0 and T0.
-
-    Args:
-        T: temperature in kelvin
-
-    >>> tetens(285.,17.269,35.86)
-    1389.7114123472836
-    """
-
-    es = constants.PvT * np.exp(a * (T - constants.TvT) / (T - b))
-    return es
-
-
-def liq_tetens(T):
-    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
-
-    This equation is what is used in the ICON code, hence its inclusion in this library.  The original
-    ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=17.269, b=35.86).
-    This implementation is referenced to the triple point values of temperature and vapor and with
-    revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
-
-    Args:
-        T: temperature in kelvin
+        Murray's form of the Teten formula given the parameters
 
     Reference:
         Murray, F. W. On the Computation of Saturation Vapor Pressure. Journal of Applied Meteorology
         and Climatology 6, 203–204 (1967).
 
-    >>> liq_tetens(np.asarray([273.16,305.]))
-    array([ 611.655     , 4719.73680592])
+    >>> es = make_tetens(Tref=constants.TvT, Pref=constants.PvT, a=22.0420, b=5.0)
+    >>> es( np.asarray([273.15,260.]) )
+    array([611.15242458, 196.1007033 ])
     """
-    a = 17.41463775
-    b = 33.6393413
 
-    return tetens(T, a, b)
+    def es(T):
+        """Returns satruation vapor pressure (Pa) over liquid constructed using Teten's expression
+
+        This function is constructed from the make_tetens closure and returns the saturation vapor
+        pressure defined by the refrence state and parameters of that fit See make_analytic
+
+        Args:
+            T: temperature in kelvin
+        """
+
+        return Pref * np.exp(a * (T - Tref) / (T - b))
+
+    return es
 
 
-def ice_tetens(T):
-    """Returns saturation vapor pressure over liquid using the Magnus-Teten's formula
+liq_tetens = make_tetens(Tref=constants.TvT, Pref=constants.PvT, a=17.4146, b=33.639)
+ice_tetens = make_tetens(Tref=constants.TvT, Pref=constants.PvT, a=22.0420, b=5.0)
+es_default = make_analytic(lx=constants.lv0, cx=constants.cl)
 
-    This equation is what is used in the ICON code, hence its inclusion in this library.  The original
-    ICON implementation followed Murray's choice of constants (T0=273.15, Pv0=610.78, a=21.875, b=7.66).
-    This implementation is referenced to the triple point values of temperature and vapor and with
-    revised constants (a,b) chosen to better agree with the fits of Wagner and Pruss
-
-    Args:
-        T: temperature in kelvin
-
-    Reference:
-        Murray, F. W. On the Computation of Saturation Vapor Pressure. Journal of Applied Meteorology
-        and Climatology 6, 203–204 (1967).
-
-    >>> ice_tetens(np.asarray([273.16,260.]))
-    array([611.655     , 196.10072658])
-    """
-    a = 22.0419977
-    b = 5.0
-
-    return tetens(T, a, b)
+es = es_default
