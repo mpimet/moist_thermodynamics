@@ -9,7 +9,9 @@ License: BSD-3C
 """
 #
 import numpy as np
-from scipy import interpolate, optimize, ode
+from scipy import interpolate, optimize
+from scipy.integrate import ode
+
 from . import constants
 from .saturation_vapor_pressures import es_default 
 
