@@ -9,10 +9,9 @@ License: BSD-3C
 """
 #
 import numpy as np
-from scipy import interpolate, optimize
+from scipy import interpolate, optimize, ode
 from . import constants
-from .saturation_vapor_pressures import es_default
-
+from .saturation_vapor_pressures import es_default 
 
 def make_es_mxd(es_liq, es_ice):
     """Closure to construct a mixed form of the saturation vapor pressure
@@ -88,7 +87,6 @@ def make_static_energy(hv0):
         return x
 
     return h
-
 
 def planck(T, nu):
     """Planck source function (J/m2 per steradian per Hz)
@@ -201,12 +199,6 @@ def saturation_partition(P, ps, qt):
     """
     qs = partial_pressure_to_mixing_ratio(ps, P) * (1.0 - qt)
     return np.minimum(qt, qs)
-
-
-moist_static_energy = make_static_energy(
-    hv0=constants.lv0 + constants.cl * constants.T0
-)
-liquid_water_static_energy = make_static_energy(hv0=constants.cpv * constants.T0)
 
 
 def theta(T, P, qv=0.0, ql=0.0, qi=0.0):
@@ -612,9 +604,6 @@ def zlcl(Plcl, T, P, qt, z):
     return T * (1.0 - (Plcl / P) ** (R / cp)) * cp / g + z
 
 
-from scipy.integrate import ode
-
-
 def moist_adiabat(
     Tbeg,
     Pbeg,
@@ -690,3 +679,10 @@ def moist_adiabat(
         Px.append(r.t)
 
     return np.asarray(Tx), np.asarray(Px)
+
+moist_static_energy = make_static_energy(
+    hv0=constants.lv0 + constants.cl * constants.T0
+)
+
+liquid_water_static_energy = make_static_energy(hv0=constants.cpv * constants.T0)
+
