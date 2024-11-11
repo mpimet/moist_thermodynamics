@@ -2,6 +2,7 @@
 """
 Author: Bjorn Stevens (bjorn.stevens@mpimet.mpg.de)
 """
+
 #
 import numpy as np
 
@@ -67,9 +68,9 @@ md = atomic_mass_dry_air = (
 )
 
 cp_ar = isobaric_specific_heat_capacity_a = 20.786  # 298.15K
-cp_o2 = (
-    isobaric_specific_heat_capacity_o2
-) = 29.376  # isobaric_specific_heat_capacity_oxygen =  298.15K or 29.126 @ 200K
+cp_o2 = isobaric_specific_heat_capacity_o2 = (
+    29.376  # isobaric_specific_heat_capacity_oxygen =  298.15K or 29.126 @ 200K
+)
 cp_n2 = isobaric_specific_heat_capacity_n2 = 29.124  # 298.15K or 29.107 @ 200K
 cp_co2 = isobaric_specific_heat_capacity_co2 = 37.129  # 298.15K or 32.359 @ 200K
 cp_h2o = isobaric_specific_heat_capacity_h2o = 33.349 + (33.590 - 33.349) / 98.15 * (
@@ -107,12 +108,12 @@ sd00 = entropy_dry_air_satmt = sd0 + cpd * np.log(T0 / T00)
 #    cl      = 4219.32   # ''
 #    ci      = 2096.70   # ''
 cpv = isobaric_water_vapor_specific_heat = 1865.01  # IAPWS97 at 273.15
-cl = (
-    liquid_water_specific_heat
-) = 4179.57  # IAPWS97 at 305 and P=0.1 MPa (gives a good fit for es over ice)
-ci = (
-    frozen_water_specific_heat
-) = 1905.43  # IAPWS97 at 247.065 and P=0.1 MPa (gives a good fit for es over ice)
+cl = liquid_water_specific_heat = (
+    4179.57  # IAPWS97 at 305 and P=0.1 MPa (gives a good fit for es over ice)
+)
+ci = frozen_water_specific_heat = (
+    1905.43  # IAPWS97 at 247.065 and P=0.1 MPa (gives a good fit for es over ice)
+)
 delta_cl = cpv - cl
 delta_ci = cpv - ci
 
@@ -126,16 +127,16 @@ sv00 = entropy_water_vapor_satmt = (s0_h2o / m_h2o) * 1000.0 + cpv * np.log(T0 /
 eps1 = rd_over_rv = Rd / Rv
 eps2 = rv_over_rd_minus_one = Rv / Rd - 1.0
 
-TvC = (
-    temperature_water_vapor_critical_point
-) = 647.096  # Critical temperature [K] of water vapor
-PvC = (
-    pressure_water_vapor_critical_point
-) = 22.064e6  # Critical pressure [Pa] of water vapor
+TvC = temperature_water_vapor_critical_point = (
+    647.096  # Critical temperature [K] of water vapor
+)
+PvC = pressure_water_vapor_critical_point = (
+    22.064e6  # Critical pressure [Pa] of water vapor
+)
 
-TvT = (
-    temperature_water_vapor_triple_point
-) = 273.16  # Triple point temperature [K] of water
+TvT = temperature_water_vapor_triple_point = (
+    273.16  # Triple point temperature [K] of water
+)
 PvT = pressure_water_vapor_triple_point = 611.655
 lvT = vaporization_enthalpy_triple_point = lv0 + (cpv - cl) * (TvT - T0)
 lfT = melting_enthalpy_triple_point = lf0 + (cpv - ci) * (TvT - T0)
