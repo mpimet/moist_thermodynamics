@@ -7,13 +7,15 @@ copygright, bjorn stevens Max Planck Institute for Meteorology, Hamburg
 
 License: BSD-3C
 """
+
 #
 import numpy as np
-from scipy import interpolate, optimize
+from scipy import  optimize
 from scipy.integrate import ode
 
-from . import constants
-from .saturation_vapor_pressures import es_default 
+from . import constants as constants
+from .saturation_vapor_pressures import es_default
+
 
 def make_es_mxd(es_liq, es_ice):
     """Closure to construct a mixed form of the saturation vapor pressure
@@ -89,6 +91,7 @@ def make_static_energy(hv0):
         return x
 
     return h
+
 
 def planck(T, nu):
     """Planck source function (J/m2 per steradian per Hz)
@@ -613,7 +616,7 @@ def moist_adiabat(
     dP,
     qt,
     cc=constants.cl,
-    l=vaporization_enthalpy,
+    lv=vaporization_enthalpy,
     es=es_default,
 ):
     """Returns the temperature and pressure by integrating along a moist adiabat
@@ -627,8 +630,8 @@ def moist_adiabat(
     The introduction of this function allows one to estimate, for instance, the effect of
     isentropic freezing on the moist adiabat as follows:
 
-    Tliq,Px= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.cl,l=mt.vaporization_enthalpy,es = mt.es_mxd)
-    Tice,Py= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.ci,l=mt.sublimation_enthalpy ,es = mt.es_mxd)
+    Tliq,Px= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.cl,lv=mt.vaporization_enthalpy,es = mt.es_mxd)
+    Tice,Py= moist_adiabat(Tsfc,Psfc,Ptop,dP,qt,cc=constants.ci,lv=mt.sublimation_enthalpy ,es = mt.es_mxd)
 
     T  = np.ones(len(Tx))*constants.T0
     T[Tliq>constants.T0] = Tliq[Tliq>constants.T0]
@@ -647,7 +650,7 @@ def moist_adiabat(
 
     """
 
-    def f(P, T, qt, cc, l):
+    def f(P, T, qt, cc, lv):
         Rd = constants.Rd
         Rv = constants.Rv
         cpd = constants.cpd
@@ -665,16 +668,16 @@ def moist_adiabat(
         dX_dP = vol
         if qc > 0.0:
             beta_P = R / (qd * Rd)
-            beta_T = beta_P * l(T) / (Rv * T)
+            beta_T = beta_P * lv(T) / (Rv * T)
 
-            dX_dT += l(T) * qv * beta_T / T
-            dX_dP *= 1.0 + l(T) * qv * beta_P / (R * T)
+            dX_dT += lv(T) * qv * beta_T / T
+            dX_dP *= 1.0 + lv(T) * qv * beta_P / (R * T)
         return dX_dP / dX_dT
 
     Tx = []
     Px = []
     r = ode(f).set_integrator("lsoda", atol=0.0001)
-    r.set_initial_value(Tbeg, Pbeg).set_f_params(qt, cc, l)
+    r.set_initial_value(Tbeg, Pbeg).set_f_params(qt, cc, lv)
     while r.successful() and r.t > Pend:
         r.integrate(r.t + dP)
         Tx.append(r.y[0])
@@ -682,9 +685,9 @@ def moist_adiabat(
 
     return np.asarray(Tx), np.asarray(Px)
 
+
 moist_static_energy = make_static_energy(
     hv0=constants.lv0 + constants.cl * constants.T0
 )
 
 liquid_water_static_energy = make_static_energy(hv0=constants.cpv * constants.T0)
-
