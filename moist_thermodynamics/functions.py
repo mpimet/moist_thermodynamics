@@ -10,7 +10,7 @@ License: BSD-3C
 
 #
 import numpy as np
-from scipy import  optimize
+from scipy import optimize
 from scipy.integrate import ode
 
 from . import constants as constants
