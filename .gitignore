@@ -3,6 +3,10 @@ build
 moist_thermodynamics.egg-info
 */.ipynb_checkpoints
 .ipynb_checkpoints
-
+.DS_Store
+*/.DS_Store
 data/*
 moist_thermodynamics/plots/*.pdf
+*/_version.py
+
+*/plots/*
