@@ -1,0 +1,17 @@
+name: mt_env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - iapws
+  - ipykernel
+  - ipython
+  - jupyter
+  - matplotlib
+  - numpy
+  - pandas
+  - scipy
+  - seaborn 
+  - xarray
+  - pip:
+    - -e .
