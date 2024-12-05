@@ -495,7 +495,7 @@ def invert_for_temperature(f, f_val, P, qt, es=es_default):
     def zero(T, f_val):
         return f_val - f(T, P, qt, es=es)
 
-    x0 = np.ones_like(f_val) * 280
+    x0 = np.full_like(f_val, 280)
 
     return optimize.newton(zero, x0, args=(f_val,))
 
@@ -522,7 +522,7 @@ def invert_for_pressure(f, f_val, T, qt, es=es_default):
     def zero(P, f_val):
         return f_val - f(T, P, qt, es=es)
 
-    x0 = np.ones_like(f_val) * 80000.0
+    x0 = np.full_like(f_val, 80000.0)
 
     return optimize.newton(zero, x0, args=(f_val,))
 
@@ -550,7 +550,8 @@ def plcl(T, P, qt, es=es_default):
         return np.abs(qs / qt - 1.0)
 
     Tl = theta_l(T, P, qt, es=es)
-    x0 = np.ones_like(Tl) * 80000.0
+    x0 = np.full_like(Tl, 80000.0)
+
     return optimize.fsolve(zero, x0, args=(Tl,))
 
 
