@@ -193,6 +193,42 @@ def partial_pressure_to_specific_humidity(pp, p):
     return r / (1 + r)
 
 
+def specific_humidity_to_partial_pressure(q, p):
+    """Returns the partial pressure given the specific humidity and pressure
+    Args:
+        q: specific humidity (unitless)
+        p: pressure in pascal
+    """
+    mr = q / (1 - q)
+    return mixing_ratio_to_partial_pressure(mr, p)
+
+
+def specific_humidity_to_relative_humidity(q, p, T, es=es_default):
+    """Returns the relative humidity given the specific humidity, pressure and temperature
+    Args:
+        q: specific humidity (unitless)
+        p: pressure in pascal
+        T: temperature in kelvin
+        es: form of the saturation vapor pressure to use
+    """
+    pp = specific_humidity_to_partial_pressure(q, p)
+    return pp / es(T)
+
+
+def relative_humidity_to_specific_humidity(RH, p, T, es=es_default):
+    """Returns the specific humidity given the relative humidity, pressure and temperature
+
+    Args:
+        RH: relative humidity (unitless)
+        p: pressure in pascal
+        T: temperature in kelvin
+        es: form of the saturation vapor pressure to use
+
+    """
+    pp = RH * es(T)
+    return partial_pressure_to_specific_humidity(pp, p)
+
+
 def saturation_partition(P, ps, qt):
     """Returns the water vapor specific humidity given saturation vapor presure
 
