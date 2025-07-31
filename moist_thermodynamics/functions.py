@@ -11,7 +11,7 @@ License: BSD-3C
 #
 import numpy as np
 from scipy import optimize
-from scipy.integrate import ode
+from scipy.integrate import solve_ivp
 
 from . import constants as constants
 from .saturation_vapor_pressures import es_default
@@ -688,6 +688,10 @@ def moist_adiabat(
         es:   saturation vapor expression
 
     """
+    Tbeg = np.asarray(Tbeg).reshape(1)
+    Pbeg = np.asarray(Pbeg).reshape(1)[0]
+    Pend = np.asarray(Pend).reshape(1)[0]
+    dP = np.asarray(dP).reshape(1)[0]
 
     def f(P, T, qt, cc, lv):
         Rd = constants.Rd
@@ -713,16 +717,15 @@ def moist_adiabat(
             dX_dP *= 1.0 + lv(T) * qv * beta_P / (R * T)
         return dX_dP / dX_dT
 
-    Tx = []
-    Px = []
-    r = ode(f).set_integrator("lsoda", atol=0.0001)
-    r.set_initial_value(Tbeg, Pbeg).set_f_params(qt, cc, lv)
-    while r.successful() and r.t > Pend:
-        r.integrate(r.t + dP)
-        Tx.append(r.y[0])
-        Px.append(r.t)
-
-    return np.asarray(Tx), np.asarray(Px)
+    r = solve_ivp(
+        f,
+        [Pbeg, Pend],
+        y0=Tbeg,
+        args=(qt, cc, lv),
+        t_eval=np.arange(Pbeg, Pend, -dP),
+        method="LSODA",
+    )
+    return r.y[0], r.t
 
 
 moist_static_energy = make_static_energy(

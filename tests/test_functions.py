@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from moist_thermodynamics import functions as mtf
-from moist_thermodynamics.saturation_vapor_pressures import es_default
+from moist_thermodynamics.saturation_vapor_pressures import es_default, liq_wagner_pruss
 
 es = es_default
 
@@ -29,6 +29,33 @@ def test_invert_T(T, p, qt):
     temp = mtf.invert_for_temperature(mtf.theta_l, Tl, p, qt, es=es)
 
     np.testing.assert_array_equal(temp, T)
+
+
+@pytest.mark.parametrize(
+    "Tbeg, Pbeg, Pend, dP, qt",
+    [
+        (300, 100000, 10000, 10000, 0.018),
+        (
+            np.array([300]),
+            np.array([100000]),
+            np.array([10000]),
+            np.array([10000]),
+            np.array([0.018]),
+        ),
+        (
+            np.array([[300]]),
+            np.array([[100000]]),
+            np.array([[10000]]),
+            np.array([[10000]]),
+            np.array([[0.018]]),
+        ),
+    ],
+)
+def test_moist_adiabat(Tbeg, Pbeg, Pend, dP, qt):
+    T, p = mtf.moist_adiabat(Tbeg, Pbeg, Pend, dP, qt, es=liq_wagner_pruss)
+    assert T.shape == (9,)
+    assert np.all(p == [100000, 90000, 80000, 70000, 60000, 50000, 40000, 30000, 20000])
+    assert np.all(np.diff(T) < 0)
 
 
 @pytest.mark.parametrize("T, p, qt", data)
