@@ -8,5 +8,4 @@ moist_thermodynamics.egg-info
 data/*
 moist_thermodynamics/plots/*.pdf
 */_version.py
-
 */plots/*

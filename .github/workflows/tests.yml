@@ -3,28 +3,33 @@ on: [push, pull_request]
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
+    strategy:
+       matrix:
+         python-version: ["3.13"]
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.x"
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v2
-      - name: Setup a local virtual environment (if no poetry.toml file)
-        run: |
-          poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local
-      - uses: actions/cache@v3
-        name: Define a cache for the virtual environment based on the dependencies lock file
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+  
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
         with:
-          path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
-      - name: Install the project dependencies
-        run: |
-          poetry self add "poetry-dynamic-versioning[plugin]"
-          poetry install
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-${{ matrix.python-version }}-
+  
+      - name: Create virtual environment
+        run: uv venv
+  
+      - name: Install dependencies
+        run: uv sync 
       - name: run tests
-        run: poetry run pytest
+        run: uv run pytest
