@@ -636,6 +636,18 @@ def get_n2(th, qv, z, axis=None):
     return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
 
 
+def hydrostatic_altitude_np(p, T, q):
+    Rv = constants.water_vapor_gas_constant
+    Rd = constants.dry_air_gas_constant
+    g = constants.gravity_earth
+
+    qbar = (q[:-1] + q[1:]) / 2
+    Tbar = (T[:-1] + T[1:]) / 2
+    dz = -(Rd + (Rv - Rd) * qbar) * Tbar * np.diff(np.log(p)) / g
+
+    return np.insert(np.cumsum(dz, axis=0), 0, 0)
+
+
 def moist_adiabat(
     Tbeg,
     Pbeg,
