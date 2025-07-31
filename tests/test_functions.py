@@ -11,7 +11,7 @@ data = [
     [
         np.array([210, 285, 300]),
         np.array([20000, 80000, 102000]),
-        np.array([0.2e-3, 6.6e-3, 17e-3]),
+        np.array([0.2e-5, 6.6e-3, 17e-3]),
     ],
 ]
 
@@ -83,3 +83,12 @@ def test_hydrostatic_altitude():
     expected = np.array([0.0, 454.57587378, 933.73508251, 1440.28932562, 1977.56209712])
     z = mtf.hydrostatic_altitude_np(P, T, q)
     assert pytest.approx(z, 1e-5) == expected
+
+
+@pytest.mark.parametrize("T, p, qt", data)
+def test_rh_q(T, p, qt):
+    """Test the conversion of relative humidity to specific humidity."""
+    rh = mtf.specific_humidity_to_relative_humidity(qt, p, T, es=es_default)
+    q = mtf.relative_humidity_to_specific_humidity(rh, p, T, es=es_default)
+    np.testing.assert_allclose(qt, q, rtol=1e-5)
+    assert np.all(rh >= 0) and np.all(rh <= 1)
