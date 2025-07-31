@@ -1,44 +1,35 @@
-[tool.poetry]
+[project]
 name = "moist_thermodynamics"
-version = "0"
 description = "Constants and functions for the treatment of moist atmospheric thermodynamics."
-
-authors = ["Bjorn Stevens <bjorn.stevens@mpimet.mpg.de>"]
+dynamic = ["version"]
+authors = [
+	{name="Bjorn Stevens", email="bjorn.stevens@mpimet.mpg.de"},
+]
 readme = "README.md"
 repository = "https://github.com/mpimet/moist_thermodynamics"
-license = "BSD 3-Clause License"
+license = "BSD-3-Clause"
+requires-python=">=3.10"
 
-[tool.poetry.dependencies]
-python = ">=3.10"
-numpy = "*"
-scipy = "*"
+dependencies= [
+	"numpy",
+	"scipy",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "*"
-
-[tool.poetry-dynamic-versioning]
-enable = true
-vcs = "git"
-
-[tool.poetry-dynamic-versioning.files."moist_thermodynamics/_version.py"]
-persistent-substitution = true
-initial-content = """
-  TYPE_CHECKING = False
-  if TYPE_CHECKING:
-      from typing import Tuple, Union
-      VERSION_TUPLE = Tuple[Union[int, str], ...]
-  else:
-      VERSION_TUPLE = object
-
-  version: str
-  __version__: str
-  __version_tuple__: VERSION_TUPLE
-  version_tuple: VERSION_TUPLE
-
-  __version__ = '0.0.0'
-  __version_tuple__ = (0, 0, 0)
-"""
+[tool.pytest.ini_options]
+pythonpath=[
+  ".", "moist_thermodynamics"
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
+requires=["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
