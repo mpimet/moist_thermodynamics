@@ -615,6 +615,27 @@ def zlcl(Plcl, T, P, qt, z):
     return T * (1.0 - (Plcl / P) ** (R / cp)) * cp / g + z
 
 
+def get_n2(th, qv, z, axis=None):
+    """Returns the Brunt-Vaisala frequeny for unsaturated air.
+
+    It assumes that the air is nowhere saturated.
+
+    Args:
+        th: potential temperature
+        qv: specific humidity
+        z: height
+    """
+
+    Rv = constants.water_vapor_gas_constant
+    Rd = constants.dry_air_gas_constant
+    g = constants.gravity_earth
+    R = Rd + (Rv - Rd) * qv
+    dlnthdz = np.gradient(np.log(th), z, axis=axis)
+    dqvdz = np.gradient(qv, z, axis=axis)
+
+    return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
+
+
 def moist_adiabat(
     Tbeg,
     Pbeg,

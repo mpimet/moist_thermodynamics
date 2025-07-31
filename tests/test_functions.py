@@ -15,6 +15,13 @@ data = [
     ],
 ]
 
+stability_data = [
+    [300, 315, 320],
+    [0.016, 0.008, 0.004],
+    [0, 2000, 4000],
+    [0.01468398, 0.01185031, 0.00808245],
+]
+
 
 @pytest.mark.parametrize("T, p, qt", data)
 def test_invert_T(T, p, qt):
@@ -31,3 +38,12 @@ def test_plcl(T, p, qt):
         print(res)
         assert np.all(res[:-1] - res[1:] < 0)
         assert abs(res[-1] - 95994.43612848) < 1
+
+
+def test_n2():
+    th = np.array(stability_data[0])
+    qv = np.array(stability_data[1])
+    z = np.array(stability_data[2])
+    expected_n2 = np.array(stability_data[3])
+    n2 = mtf.get_n2(th, qv, z)
+    assert pytest.approx(n2, 1e-5) == expected_n2
