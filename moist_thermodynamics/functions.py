@@ -234,6 +234,18 @@ def theta(T, P, qv=0.0, ql=0.0, qi=0.0):
     return T * (P0 / P) ** kappa
 
 
+def theta2T(theta, p, qv=0, ql=0, qi=0):
+    """
+    Convert dry potential temperature to temperature.
+    """
+    Rd = constants.dry_air_gas_constant
+    cpd = constants.isobaric_dry_air_specific_heat
+    P0 = constants.P0
+    kappa = Rd / cpd
+
+    return theta / ((P0 / p) ** kappa)
+
+
 def theta_e_bolton(T, P, qt, es=es_default):
     """Returns the pseudo equivalent potential temperature.
 
