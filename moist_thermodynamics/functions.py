@@ -236,17 +236,12 @@ def theta(T, P, qv=0.0, ql=0.0, qi=0.0):
 
 def theta2T(theta, p, qv=0, ql=0, qi=0):
     """
-    Convert potential temperature to temperature.
+    Convert dry potential temperature to temperature.
     """
     Rd = constants.dry_air_gas_constant
-    Rv = constants.water_vapor_gas_constant
     cpd = constants.isobaric_dry_air_specific_heat
-    cpv = constants.isobaric_water_vapor_specific_heat
-    cl = constants.liquid_water_specific_heat
-    ci = constants.frozen_water_specific_heat
     P0 = constants.P0
-    qd = 1.0 - qv - ql - qi
-    kappa = (qd * Rd + qv * Rv) / (qd * cpd + qv * cpv + ql * cl + qi * ci)
+    kappa = Rd / cpd
 
     return theta / ((P0 / p) ** kappa)
 
