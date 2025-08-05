@@ -772,6 +772,8 @@ def moist_adiabat(
         args=(qt, cc, lv),
         t_eval=np.arange(Pbeg, Pend, -dP),
         method="LSODA",
+        rtol=1.0e-5,
+        atol=1.0e-8,
     )
     return r.y[0], r.t
 
