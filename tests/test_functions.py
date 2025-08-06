@@ -76,12 +76,12 @@ def test_n2():
     assert pytest.approx(n2, 1e-5) == expected_n2
 
 
-def test_hydrostatic_altitude():
+def pressure_altitude():
     P = np.linspace(100000, 80000, 5)
     T = np.full(5, 299.5)
     q = np.full(5, 0.018)
     expected = np.array([0.0, 454.57587378, 933.73508251, 1440.28932562, 1977.56209712])
-    z = mtf.hydrostatic_altitude_np(P, T, q)
+    z = mtf.pressure_altitude(P, T, qv=q)
     assert pytest.approx(z, 1e-5) == expected
 
 

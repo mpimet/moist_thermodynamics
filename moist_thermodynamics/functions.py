@@ -669,9 +669,9 @@ def get_n2(th, qv, z, axis=None):
     It assumes that the air is nowhere saturated.
 
     Args:
-        th: potential temperature
-        qv: specific humidity
-        z: height
+        th: potential temperature [K]
+        qv: specific humidity [kg/kg]
+        z: height [m]
     """
 
     Rv = constants.water_vapor_gas_constant
@@ -684,14 +684,26 @@ def get_n2(th, qv, z, axis=None):
     return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
 
 
-def hydrostatic_altitude_np(p, T, q):
+def pressure_altitude(p, T, qv=0, qc=0):
+    """Returns the pressure altitude in meters obtained by numerical
+    integration of the atmosphere, from an assumed surface height of
+    0 m, incorporating moisture efffects.  If the atmosphere is the
+    WMO standard atmosphere then this is the same as the barometric
+    altitude.
+
+    Args:
+        p: pressure [Pa]
+        T: Temperature [K]
+        qv: specific humidity [kg/kg]
+        qc: specific mass of condensate/precipitate [kg/kg]
+    """
     Rv = constants.water_vapor_gas_constant
     Rd = constants.dry_air_gas_constant
     g = constants.gravity_earth
 
-    qbar = (q[:-1] + q[1:]) / 2
+    Rbar = Rd + (Rv - Rd) * (qv[:-1] + qv[1:]) / 2 - Rd * (qc[:-1] + qc[1:]) / 2
     Tbar = (T[:-1] + T[1:]) / 2
-    dz = -(Rd + (Rv - Rd) * qbar) * Tbar * np.diff(np.log(p)) / g
+    dz = -Rbar * Tbar * np.diff(np.log(p)) / g
 
     return np.insert(np.cumsum(dz, axis=0), 0, 0)
 
