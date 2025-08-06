@@ -13,7 +13,7 @@ import numpy as np
 from scipy import optimize
 from scipy.integrate import solve_ivp
 
-from . import constants as constants
+from . import constants
 from .saturation_vapor_pressures import es_default
 
 
