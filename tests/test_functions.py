@@ -67,13 +67,13 @@ def test_plcl(T, p, qt):
         assert abs(res[-1] - 95994.43612848) < 1
 
 
-def test_n2():
+def test_brunt_vaisala_frequency():
     th = np.array(stability_data[0])
     qv = np.array(stability_data[1])
     z = np.array(stability_data[2])
-    expected_n2 = np.array(stability_data[3])
-    n2 = mtf.get_n2(th, qv, z)
-    assert pytest.approx(n2, 1e-5) == expected_n2
+    expected_freq = np.array(stability_data[3])
+    freq = mtf.brunt_vaisala_frequency(th, qv, z)
+    assert pytest.approx(freq, 1e-5) == expected_freq
 
 
 def pressure_altitude():

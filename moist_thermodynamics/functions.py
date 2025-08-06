@@ -663,8 +663,8 @@ def zlcl(Plcl, T, P, qt, z):
     return T * (1.0 - (Plcl / P) ** (R / cp)) * cp / g + z
 
 
-def get_n2(th, qv, z, axis=None):
-    """Returns the Brunt-Vaisala frequeny for unsaturated air.
+def brunt_vaisala_frequency(th, qv, z, axis=None):
+    """Returns the Brunt-Vaisala frequeny (1/s) for unsaturated air.
 
     It assumes that the air is nowhere saturated.
 
