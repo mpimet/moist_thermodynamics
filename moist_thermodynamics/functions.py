@@ -684,7 +684,7 @@ def brunt_vaisala_frequency(th, qv, z, axis=None):
     return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
 
 
-def pressure_altitude(p, T, qv=np.asarray([0,0]), qc=np.asarray([0,0])):
+def pressure_altitude(p, T, qv=np.asarray([0, 0]), qc=np.asarray([0, 0])):
     """Returns the pressure altitude in meters obtained by numerical
     integration of the atmosphere, from an assumed surface height of
     0 m, incorporating moisture efffects.  If the atmosphere is the

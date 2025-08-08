@@ -51,8 +51,8 @@ def test_invert_T(T, p, qt):
         ),
     ],
 )
-def test_moist_adiabat(Tbeg, Pbeg, Pend, dP, qt):
-    T, p = mtf.moist_adiabat(Tbeg, Pbeg, Pend, dP, qt, es=liq_wagner_pruss)
+def test_moist_adiabat(Tbeg, P, qt):
+    T, p = mtf.moist_adiabat(Tbeg, P, qt, es=liq_wagner_pruss)
     assert T.shape == (9,)
     assert np.all(p == [100000, 90000, 80000, 70000, 60000, 50000, 40000, 30000, 20000])
     assert np.all(np.diff(T) < 0)
