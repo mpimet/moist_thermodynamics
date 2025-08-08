@@ -32,7 +32,7 @@ def test_invert_T(T, p, qt):
 
 
 @pytest.mark.parametrize(
-    "Tbeg, P, qt", [(300.0, np.arange(100000, 10000, -10000), 0.018)]
+    "Tbeg, P, qt", [[300.0, np.arange(100000, 10000, -10000), 0.018]]
 )
 def test_moist_adiabat(Tbeg, P, qt):
     T, p = mtf.moist_adiabat(Tbeg, P, qt, es=liq_wagner_pruss)
