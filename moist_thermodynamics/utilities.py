@@ -5,13 +5,12 @@ from . import constants
 from . import saturation_vapor_pressures as svp
 
 
-def get_moist_adiabat(
+def moist_adiabat_with_ice(
     P, Tx=301.0, qx=17e-5, Tmin=195.0, thx=mt.theta_l, integrate=False
 ):
-    """Returns the moist adiabat along a pressure dimension.
+    """Returns the liq-ice moist adiabat along a pressure dimension.
 
-    Cacluates the moist adiabate based either on an integration or a specified
-    isentrope with pressure as the vertical coordinate.
+    Cacluates the moist adiabat with freezing.
 
     Args:
         P: pressure
@@ -32,9 +31,7 @@ def get_moist_adiabat(
         for y in X.values():
             y["T"], Px = mt.moist_adiabat(
                 Tx,
-                P[0],
-                P[-1] + P[1] - P[0],
-                P[0] - P[1],
+                P,
                 qx,
                 cc=y["cx"],
                 lv=y["lx"],

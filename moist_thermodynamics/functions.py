@@ -684,7 +684,7 @@ def brunt_vaisala_frequency(th, qv, z, axis=None):
     return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
 
 
-def pressure_altitude(p, T, qv=0, qc=0):
+def pressure_altitude(p, T, qv=np.asarray([0,0]), qc=np.asarray([0,0])):
     """Returns the pressure altitude in meters obtained by numerical
     integration of the atmosphere, from an assumed surface height of
     0 m, incorporating moisture efffects.  If the atmosphere is the
@@ -710,9 +710,7 @@ def pressure_altitude(p, T, qv=0, qc=0):
 
 def moist_adiabat(
     Tbeg,
-    Pbeg,
-    Pend,
-    dP,
+    P_eval,
     qt,
     cc=constants.cl,
     lv=vaporization_enthalpy,
@@ -740,18 +738,13 @@ def moist_adiabat(
     the expansional work
 
     Args:
-        Tbeg: temperature at P0 in kelvin
-        Pbeg: starting pressure in pascal
-        Pend: pressure to which to integrate to in pascal
-        dP:   integration step
-        qt:   specific mass of total water
-        es:   saturation vapor expression
+        Tbeg:   temperature at P0 in kelvin
+        qt:     specific mass of total water
+        es:     saturation vapor expression
+        P_eval: Pressure grid over which answer is evalauted
 
     """
     Tbeg = np.asarray(Tbeg).reshape(1)
-    Pbeg = np.asarray(Pbeg).reshape(1)[0]
-    Pend = np.asarray(Pend).reshape(1)[0]
-    dP = np.asarray(dP).reshape(1)[0]
 
     def f(P, T, qt, cc, lv):
         Rd = constants.Rd
@@ -779,10 +772,10 @@ def moist_adiabat(
 
     r = solve_ivp(
         f,
-        [Pbeg, Pend],
+        [P_eval[0], P_eval[-1]],
         y0=Tbeg,
         args=(qt, cc, lv),
-        t_eval=np.arange(Pbeg, Pend, -dP),
+        t_eval=P_eval,
         method="LSODA",
         rtol=1.0e-5,
         atol=1.0e-8,
