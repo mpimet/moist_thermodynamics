@@ -31,7 +31,9 @@ def test_invert_T(T, p, qt):
     np.testing.assert_array_equal(temp, T)
 
 
-@pytest.mark.parametrize("Tbeg, P, qt", [300, np.arange(100000, 10000, -10000), 0.018])
+@pytest.mark.parametrize(
+    "Tbeg, P, qt", [(300.0, np.arange(100000, 10000, -10000), 0.018)]
+)
 def test_moist_adiabat(Tbeg, P, qt):
     T, p = mtf.moist_adiabat(Tbeg, P, qt, es=liq_wagner_pruss)
     assert T.shape == (9,)
