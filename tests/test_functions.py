@@ -32,29 +32,12 @@ def test_invert_T(T, p, qt):
 
 
 @pytest.mark.parametrize(
-    "Tbeg, Pbeg, Pend, dP, qt",
-    [
-        (300, 100000, 10000, 10000, 0.018),
-        (
-            np.array([300]),
-            np.array([100000]),
-            np.array([10000]),
-            np.array([10000]),
-            np.array([0.018]),
-        ),
-        (
-            np.array([[300]]),
-            np.array([[100000]]),
-            np.array([[10000]]),
-            np.array([[10000]]),
-            np.array([[0.018]]),
-        ),
-    ],
+    "Tbeg, P, qt", [(300.0, np.arange(100000, 10000, -10000), 0.018)]
 )
-def test_moist_adiabat(Tbeg, Pbeg, Pend, dP, qt):
-    T, p = mtf.moist_adiabat(Tbeg, Pbeg, Pend, dP, qt, es=liq_wagner_pruss)
+def test_moist_adiabat(Tbeg, P, qt):
+    T, p = mtf.moist_adiabat(Tbeg, P, qt, es=liq_wagner_pruss)
     assert T.shape == (9,)
-    assert np.all(p == [100000, 90000, 80000, 70000, 60000, 50000, 40000, 30000, 20000])
+    assert np.all(p == np.arange(100000, 10000, -10000))
     assert np.all(np.diff(T) < 0)
 
 
@@ -67,21 +50,21 @@ def test_plcl(T, p, qt):
         assert abs(res[-1] - 95994.43612848) < 1
 
 
-def test_n2():
+def test_brunt_vaisala_frequency():
     th = np.array(stability_data[0])
     qv = np.array(stability_data[1])
     z = np.array(stability_data[2])
-    expected_n2 = np.array(stability_data[3])
-    n2 = mtf.get_n2(th, qv, z)
-    assert pytest.approx(n2, 1e-5) == expected_n2
+    expected_freq = np.array(stability_data[3])
+    freq = mtf.brunt_vaisala_frequency(th, qv, z)
+    assert pytest.approx(freq, 1e-5) == expected_freq
 
 
-def test_hydrostatic_altitude():
+def pressure_altitude():
     P = np.linspace(100000, 80000, 5)
     T = np.full(5, 299.5)
     q = np.full(5, 0.018)
     expected = np.array([0.0, 454.57587378, 933.73508251, 1440.28932562, 1977.56209712])
-    z = mtf.hydrostatic_altitude_np(P, T, q)
+    z = mtf.pressure_altitude(P, T, qv=q)
     assert pytest.approx(z, 1e-5) == expected
 
 
