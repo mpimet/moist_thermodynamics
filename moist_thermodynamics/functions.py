@@ -684,11 +684,13 @@ def brunt_vaisala_frequency(th, qv, z, axis=None):
     return np.sqrt(g * (dlnthdz + (Rv - Rd) / R * dqvdz))
 
 
-def pressure_altitude(p, T, qv=np.asarray([0, 0]), qc=np.asarray([0, 0])):
-    """Returns the pressure altitude in meters obtained by numerical
-    integration of the atmosphere, from an assumed surface height of
-    0 m, incorporating moisture efffects.  If the atmosphere is the
-    WMO standard atmosphere then this is the same as the barometric
+def pressure_altitude(p, T, qv=None, qc=None):
+    """Returns the pressure altitude in meters.
+
+    Computed by numerical integration of the atmosphere, from an
+    assumed surface height of 0 m, incorporating moisture efffects.
+    If the atmosphere is the WMO standard atmosphere, then this
+    is the same as the barometric
     altitude.
 
     Args:
@@ -697,6 +699,11 @@ def pressure_altitude(p, T, qv=np.asarray([0, 0]), qc=np.asarray([0, 0])):
         qv: specific humidity [kg/kg]
         qc: specific mass of condensate/precipitate [kg/kg]
     """
+    if qv is None:
+        qv = np.zeros_like(p)
+    if qc is None:
+        qc = np.zeros_like(p)
+
     Rv = constants.water_vapor_gas_constant
     Rd = constants.dry_air_gas_constant
     g = constants.gravity_earth
