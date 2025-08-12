@@ -687,10 +687,10 @@ def brunt_vaisala_frequency(th, qv, z, axis=None):
 def pressure_altitude(p, T, qv=None, qc=None):
     """Returns the pressure altitude in meters.
 
-    Computed by obtained by numerical
-    integration of the atmosphere, from an assumed surface height of
-    0 m, incorporating moisture efffects.  If the atmosphere is the
-    WMO standard atmosphere then this is the same as the barometric
+    Computed by numerical integration of the atmosphere, from an
+    assumed surface height of 0 m, incorporating moisture efffects.
+    If the atmosphere is the WMO standard atmosphere, then this
+    is the same as the barometric
     altitude.
 
     Args:
